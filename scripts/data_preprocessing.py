@@ -16,7 +16,8 @@ import matplotlib.pyplot as plt
 import hdmpy
 import statsmodels.api as sm
 from statsmodels.tsa.ar_model import AutoReg
-
+from sklearn.preprocessing import StandardScaler
+from pathlib import Path
 
 # ----------------------------------------------------------------------
 # Helper functions
@@ -56,8 +57,8 @@ def load_and_transform_qd(filepath, gdp_col='GDPC1'):
     and return a Series of quarterly GDP growth (index = period).
     """
     qd = pd.read_csv(filepath)
-    tcodes_qd = qd.iloc[0]
-    qd = qd.iloc[1:].copy()
+    tcodes_qd = qd.iloc[1]
+    qd = qd.iloc[2:].copy()
     
     # Parse dates (format may vary; adjust if needed)
     qd['sasdate'] = pd.to_datetime(qd['sasdate'], format='%m/%d/%Y', errors='coerce')
@@ -135,7 +136,9 @@ def select_features_rlasso(X, y, feature_names, threshold=1e-6):
     Run rlasso from hdmpy, extract non‑zero coefficients,
     and return the names of selected variables.
     """
-    rlasso_result = hdmpy.rlasso(X, y, post=True)
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    rlasso_result = hdmpy.rlasso(X_scaled, y, post=True)
     
     # Coefficients are stored in rlasso_result.est['coefficients'] as a DataFrame
     coefs_df = rlasso_result.est['coefficients']
@@ -242,8 +245,9 @@ def fit_ar_models(monthly_data, selected_names, max_lag=12):
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
     # File paths (adjust if needed)
-    md_path = "data/2026-02-MD.csv"
-    qd_path = "data/2026-02-QD.csv"
+    ROOT = Path(__file__).resolve().parents[1]
+    md_path = ROOT / "data/2026-02-MD.csv"
+    qd_path = ROOT / "data/2026-02-QD.csv"
     
     # Step 1: Load and transform monthly data
     MD_trans = load_and_transform_md(md_path)
@@ -269,6 +273,7 @@ if __name__ == "__main__":
     
     print("\nAll preprocessing and model fitting complete.")
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
+
 
 
 
