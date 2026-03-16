@@ -17,11 +17,20 @@ QD = pd.read_csv("../data/2026-02-QD.csv")
 
 
 # transformation code extraction 
-tcodes = MD.iloc[0]
+tcodes_md = MD.iloc[0]
 MD = MD.iloc[1:]
 
 MD['sasdate'] = pd.to_datetime(MD['sasdate'], format='%m/%d/%Y')
 MD = MD.set_index('sasdate')
+
+
+tcodes_qd =  QD.iloc[0]
+QD = QD.iloc[1:].copy()
+QD = QD[QD['sasdate'].str.lower() != 'transform']
+
+QD['sasdate'] = pd.to_datetime(QD['sasdate'], format = '%m/%d/%Y')
+QD = QD.set_index('sasdate')
+
 
 def transform_series(series, code):
     if code == 1:
@@ -46,34 +55,53 @@ def transform_series(series, code):
         return series
     
 
-### apply transformations to all pred
+### apply transformations to all MD pred
+def tcode_trans(DF, tcodes):
 # 1. Create a list to hold each transformed series
-transformed_list = []
+    transformed_list = []
+    # 2. Run the loop to transform each column
+    for col in DF.columns:
+        code = int(tcodes[col])
+        # Apply transformation and keep the series name
+        s = transform_series(DF[col].astype(float), code)
+        s.name = col
+        transformed_list.append(s)
+    # 3. "Stitch" them all together at once (This prevents fragmentation)
+    DF_trans = pd.concat(transformed_list, axis=1)
+    # 4. Final cleaning (from Slide 46)
+    DF_trans.dropna(inplace=True)
 
-# 2. Run the loop to transform each column
-for col in MD.columns:
-    code = int(tcodes[col])
-    # Apply transformation and keep the series name
-    s = transform_series(MD[col].astype(float), code)
-    s.name = col
-    transformed_list.append(s)
+    return DF_trans
 
-# 3. "Stitch" them all together at once (This prevents fragmentation)
-MD_trans = pd.concat(transformed_list, axis=1)
-
-# 4. Final cleaning (from Slide 46)
-MD_trans.dropna(inplace=True)
+MD_trans = tcode_trans(MD, tcodes_md)
+QD_trans = tcode_trans(QD, tcodes_qd)
 
 print("EDA Step 1 Complete: Data is stationary and de-fragmented.")
 
 
 # Compare "Real Personal Income" (typically TCODE 5)
-plt.figure(figsize=(12, 5))
-plt.subplot(1, 2, 1)
-plt.plot(MD['RPI'])
-plt.title("Original RPI (Non-Stationary)")
+# plt.figure(figsize=(12, 5))
+# plt.subplot(1, 2, 1)
+# plt.plot(MD['RPI'])
+# plt.title("Original RPI (Non-Stationary)")
 
-plt.subplot(1, 2, 2)
-plt.plot(MD_trans['RPI'])
-plt.title("Transformed RPI (Stationary)")
-plt.show()
+# plt.subplot(1, 2, 2)
+# plt.plot(MD_trans['RPI'])
+# plt.title("Transformed RPI (Stationary)")
+# plt.show() 
+
+### apply transformations to all QD pred
+# transformed_qd_list = []
+
+# for col in QD.columns:
+#     code = int(tcodes_qd[col])
+    
+#     s = transform_series(QD[col].astype(float), code)
+#     s.name = col
+    
+#     transformed_qd_list.append(s)
+
+# QD_trans = pd.concat(transformed_qd_list, axis=1)
+# QD_trans.dropna(inplace=True)
+
+# GDP = QD_trans['GDPC1']
