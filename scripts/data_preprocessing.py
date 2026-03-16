@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import hdmpy as hdm
 
 MD = pd.read_csv("../data/2026-02-MD.csv")
 QD = pd.read_csv("../data/2026-02-QD.csv")
