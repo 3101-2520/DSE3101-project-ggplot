@@ -1,9 +1,9 @@
 
 from config import *
-from scripts.data_preprocessing import load_and_transform_md, aggregate_to_quarterly, load_and_transform_qd, merge_data
-from scripts.feature_selection import select_features_rlasso
+from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly, load_and_transform_qd, merge_data
+from src.feature_selection import select_features_rlasso
 from models.ar_indicator import fit_ar_models
-from models.bridge_model import fit_bridge_equation
+from models.bridge_model import fit_bridge_model
 
 # ----------------------------------------------------------------------
 # Main execution
@@ -28,10 +28,11 @@ if __name__ == "__main__":
     
     # Step 5: Feature selection with rlasso
     feature_names = data.drop(columns=['GDP_growth']).columns
-    selected = select_features_rlasso(X, y, feature_names)
+    selected_summary = select_features_rlasso(data, target_col='GDP_growth')
+    selected = list(selected_summary["feature"])
     
     # Step 6: Fit bridge equation (OLS) using selected variables
-    bridge_model, bridge_coefs = fit_bridge_equation(data, selected)
+    bridge_model, bridge_coefs = fit_bridge_model(data, selected)
     
     # Step 7: Fit AR(p) models for each selected indicator (for ragged‑edge forecasting)
     ar_models = fit_ar_models(MD_trans, selected, max_lag=12)

@@ -122,7 +122,7 @@ def merge_data(monthly_q, gdp_series):
     y = data['GDP_growth'].values
     print("Quarterly dataset shape:", data.shape)
     print("Number of predictors:", X.shape[1])
-    return data
+    return data, X, y
 
 ## Add covid dummy variable 
 def add_covid_dummy(data, start='2020Q1', end='2020Q4'):

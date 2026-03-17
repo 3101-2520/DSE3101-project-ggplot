@@ -1,19 +1,20 @@
 
-from scripts.config import *
+from config import *
 
 
 
-
-
-
-def fit_bridge_model(data, selected_names):
+def fit_bridge_model(data, selected_names, target_col='GDP_growth'):
     """
     Fit OLS bridge equation: GDP_growth ~ selected indicators (quarterly aggregates).
     Returns the fitted model and a dictionary of coefficients.
     """
-    X_sel = data[selected_names]
+    mdata = data[selected_names + [target_col]].copy()
+
+    mdata = mdata.replace([np.inf, -np.inf], np.nan).dropna()
+
+    X_sel = mdata[selected_names]
     X_sel = sm.add_constant(X_sel)
-    y = data['GDP_growth']
+    y = mdata['GDP_growth']
     model = sm.OLS(y, X_sel).fit()
     print(model.summary())
     
