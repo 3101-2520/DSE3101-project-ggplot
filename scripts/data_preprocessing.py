@@ -1,23 +1,14 @@
 """
-Nowcasting project – Data preprocessing and feature selection
+Nowcasting project – Data preprocessing
 ------------------------------------------------------------
 This script:
 1. Loads FRED‑MD (monthly) and FRED‑QD (quarterly) CSV files.
 2. Applies the recommended t‑code transformations to achieve stationarity.
 3. Aggregates monthly indicators to quarterly frequency.
 4. Merges with quarterly GDP growth.
-5. Uses `hdmpy.rlasso` to select the most relevant monthly indicators.
-6. (Placeholders) Fits bridge equation and AR(p) models for later nowcasting.
 """
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import hdmpy
-import statsmodels.api as sm
-from statsmodels.tsa.ar_model import AutoReg
-from sklearn.preprocessing import StandardScaler
-from pathlib import Path
+from config import *
 
 # ----------------------------------------------------------------------
 # Helper functions
@@ -46,7 +37,7 @@ def load_and_transform_md(filepath):
         transformed_list.append(s)
     
     md_trans = pd.concat(transformed_list, axis=1)
-    md_trans.dropna(inplace=True)          # remove rows with NaN from differencing
+    #md_trans.dropna(inplace=True)          # should not remove all rows with NaN values 
     print("FRED‑MD transformation complete. Shape:", md_trans.shape)
     return md_trans
 
@@ -57,9 +48,12 @@ def load_and_transform_qd(filepath, gdp_col='GDPC1'):
     and return a Series of quarterly GDP growth (index = period).
     """
     qd = pd.read_csv(filepath)
-    tcodes_qd = qd.iloc[1]
-    qd = qd.iloc[2:].copy()
-    
+    tcodes_qd = qd.iloc[1]     # FRED-QD stores metadata/header rows before actual observations.
+    qd = qd.iloc[2:].copy()    # Row 1 contains transformation codes for the variables.
+
+    if gdp_col not in qd.columns:
+        raise ValueError(f"{gdp_col} not found in quarterly dataset.")
+
     # Parse dates (format may vary; adjust if needed)
     qd['sasdate'] = pd.to_datetime(qd['sasdate'], format='%m/%d/%Y', errors='coerce')
     qd.dropna(subset=['sasdate'], inplace=True)
@@ -96,11 +90,11 @@ def transform_series(series, code):
     elif code == 3:
         return series.diff().diff()
     elif code == 4:
-        return np.log(series)
+        return np.log(series.where(series > 0))
     elif code == 5:
-        return np.log(series).diff()
+        return np.log(series.where(series > 0)).diff()
     elif code == 6:
-        return np.log(series).diff().diff()
+        return np.log(series.where(series > 0)).diff().diff()
     else:
         return series   # fallback (should not happen)
 
@@ -113,7 +107,7 @@ def aggregate_to_quarterly(monthly_df):
     # Add a quarter column
     monthly_df = monthly_df.copy()
     monthly_df['quarter'] = monthly_df.index.to_period('Q')
-    # Group by quarter and take mean
+    # For now, all monthly indicators are aggregated using quarterly averages.
     quarterly = monthly_df.groupby('quarter').mean()
     return quarterly
 
@@ -128,167 +122,24 @@ def merge_data(monthly_q, gdp_series):
     y = data['GDP_growth'].values
     print("Quarterly dataset shape:", data.shape)
     print("Number of predictors:", X.shape[1])
-    return data, X, y
+    return data
 
+## Add covid dummy variable 
+def add_covid_dummy(data, start='2020Q1', end='2020Q4'):
+    data = data.copy()
+    start_q = pd.Period(start, freq='Q')
+    end_q = pd.Period(end, freq='Q')
+    data['covid_dummy'] = ((data.index >= start_q) & (data.index <= end_q)).astype(int)
+    return data
 
-def select_features_rlasso(X, y, feature_names, threshold=1e-6):
-    """
-    Run rlasso from hdmpy, extract non‑zero coefficients,
-    and return the names of selected variables.
-    """
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    rlasso_result = hdmpy.rlasso(X_scaled, y, post=True)
-    
-    # Coefficients are stored in rlasso_result.est['coefficients'] as a DataFrame
-    coefs_df = rlasso_result.est['coefficients']
-    coefs_all = coefs_df.values.flatten()
-    
-    # If the length includes intercept (should be n_features + 1), drop it
-    if len(coefs_all) == X.shape[1] + 1:
-        coefs = coefs_all[1:]
-    else:
-        coefs = coefs_all
-    
-    selected_idx = np.where(np.abs(coefs) > threshold)[0]
-    selected_names = feature_names[selected_idx]
-    print("Selected variables:", list(selected_names))
-    print("Number of selected variables:", len(selected_names))
-    return selected_names
+## Add one function that prepares the full training dataframe
+def prepare_training_data(md_path, qd_path, gdp_col='GDPC1', add_covid=False):
+    md_trans = load_and_transform_md(md_path)
+    gdp_growth = load_and_transform_qd(qd_path, gdp_col=gdp_col)
+    monthly_q = aggregate_to_quarterly(md_trans)
+    data = merge_data(monthly_q, gdp_growth)
 
+    if add_covid:
+        data = add_covid_dummy(data)
 
-def fit_bridge_equation(data, selected_names):
-    """
-    Fit OLS bridge equation: GDP_growth ~ selected indicators (quarterly aggregates).
-    Returns the fitted model and a dictionary of coefficients.
-    """
-    X_sel = data[selected_names]
-    X_sel = sm.add_constant(X_sel)
-    y = data['GDP_growth']
-    model = sm.OLS(y, X_sel).fit()
-    print(model.summary())
-    
-    # Store coefficients
-    coef_dict = {'intercept': model.params['const']}
-    for name in selected_names:
-        coef_dict[name] = model.params[name]
-    return model, coef_dict
-
-
-def fit_ar_models(monthly_data, selected_names, max_lag=12):
-    """
-    Fits autoregressive (AR) models for each selected monthly indicator.
-
-    For each variable in `selected_names`, an AR(p) model with p from 1 to `max_lag` is estimated
-    on the series after dropping missing values and resetting the index to integer positions
-    (to avoid date‑related issues). The model with the lowest AIC is retained. If no model can
-    be fitted (e.g., due to estimation errors), a simple fallback forecast that returns the
-    series mean is used.
-
-    Parameters
-    ----------
-    monthly_data : pd.DataFrame
-        DataFrame with monthly data (index = date) containing all potential indicators.
-    selected_names : list of str
-        Names of the indicators for which AR models should be fitted.
-    max_lag : int, optional
-        Maximum number of lags to consider (default 12). The actual maximum lag per series
-        is limited to half its length to avoid overfitting.
-
-    Returns
-    -------
-    dict
-        A dictionary with keys = indicator names, values = fitted model objects. Each model
-        has a `forecast(steps)` method that returns an array of forecasted values.
-    """
-    ar_models = {}
-    for name in selected_names:
-        series = monthly_data[name].dropna().copy()
-        
-        # Reset index to integer positions (0,1,2,…) – eliminates date complications
-        series = series.reset_index(drop=True)
-        
-        print(f"\nAttempting AR for {name}: length = {len(series)}")
-        
-        best_aic = np.inf
-        best_model = None
-        best_p = None
-        
-        for p in range(1, min(max_lag, len(series)//2)):  # avoid p too large
-            try:
-                model = AutoReg(series, lags=p).fit()
-                if model.aic < best_aic:
-                    best_aic = model.aic
-                    best_model = model
-                    best_p = p
-            except Exception as e:
-                # Print the error for debugging (optional)
-                print(f"   AR({p}) failed: {e}")
-                continue
-        
-        if best_model is not None:
-            ar_models[name] = best_model
-            print(f"✓ AR({best_p}) fitted for {name}")
-        else:
-            print(f"✗ No AR model could be fitted for {name}. Using mean fallback.")
-            # Fallback: always predict the series mean
-            class MeanForecast:
-                def forecast(self, steps):
-                    return np.full(steps, series.mean())
-            ar_models[name] = MeanForecast()
-    
-    return ar_models
-
-
-# ----------------------------------------------------------------------
-# Main execution
-# ----------------------------------------------------------------------
-if __name__ == "__main__":
-    # File paths (adjust if needed)
-    ROOT = Path(__file__).resolve().parents[1]
-    md_path = ROOT / "data/2026-02-MD.csv"
-    qd_path = ROOT / "data/2026-02-QD.csv"
-    
-    # Step 1: Load and transform monthly data
-    MD_trans = load_and_transform_md(md_path)
-    
-    # Step 2: Load and transform quarterly GDP
-    GDP_growth = load_and_transform_qd(qd_path, gdp_col='GDPC1')
-    
-    # Step 3: Aggregate monthly indicators to quarterly
-    monthly_q = aggregate_to_quarterly(MD_trans)
-    
-    # Step 4: Merge with GDP growth
-    data, X, y = merge_data(monthly_q, GDP_growth)
-    
-    # Step 5: Feature selection with rlasso
-    feature_names = data.drop(columns=['GDP_growth']).columns
-    selected = select_features_rlasso(X, y, feature_names)
-    
-    # Step 6: Fit bridge equation (OLS) using selected variables
-    bridge_model, bridge_coefs = fit_bridge_equation(data, selected)
-    
-    # Step 7: Fit AR(p) models for each selected indicator (for ragged‑edge forecasting)
-    ar_models = fit_ar_models(MD_trans, selected, max_lag=12)
-    
-    print("\nAll preprocessing and model fitting complete.")
-    print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return md_trans, monthly_q, data
