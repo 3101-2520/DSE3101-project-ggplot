@@ -1,108 +1,145 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import hdmpy as hdm
+"""
+Nowcasting project – Data preprocessing
+------------------------------------------------------------
+This script:
+1. Loads FRED‑MD (monthly) and FRED‑QD (quarterly) CSV files.
+2. Applies the recommended t‑code transformations to achieve stationarity.
+3. Aggregates monthly indicators to quarterly frequency.
+4. Merges with quarterly GDP growth.
+"""
 
-MD = pd.read_csv("../data/2026-02-MD.csv")
-QD = pd.read_csv("../data/2026-02-QD.csv")
+from config import *
 
-#print(MD.shape)
-#print(MD.columns)
-#print(MD.head())
-#print(MD.info())
+# ----------------------------------------------------------------------
+# Helper functions
+# ----------------------------------------------------------------------
 
-#print(QD.shape)
-#print(QD.columns)
-#print(QD.head())
-#print(QD.info())
+def load_and_transform_md(filepath):
+    """
+    Load FRED‑MD CSV, extract transformation codes, apply them,
+    and return a DataFrame of stationary monthly series (index = date).
+    """
+    md = pd.read_csv(filepath)
+    # First row contains t‑codes
+    tcodes = md.iloc[0]
+    md = md.iloc[1:].copy()
+    
+    # Parse dates
+    md['sasdate'] = pd.to_datetime(md['sasdate'], format='%m/%d/%Y')
+    md.set_index('sasdate', inplace=True)
+    
+    # Apply transformations to every column
+    transformed_list = []
+    for col in md.columns:
+        code = int(tcodes[col])
+        s = transform_series(md[col].astype(float), code)
+        s.name = col
+        transformed_list.append(s)
+    
+    md_trans = pd.concat(transformed_list, axis=1)
+    #md_trans.dropna(inplace=True)          # should not remove all rows with NaN values 
+    print("FRED‑MD transformation complete. Shape:", md_trans.shape)
+    return md_trans
 
 
-# transformation code extraction 
-tcodes_md = MD.iloc[0]
-MD = MD.iloc[1:]
+def load_and_transform_qd(filepath, gdp_col='GDPC1'):
+    """
+    Load FRED‑QD CSV, extract transformation codes, apply them to the GDP series,
+    and return a Series of quarterly GDP growth (index = period).
+    """
+    qd = pd.read_csv(filepath)
+    tcodes_qd = qd.iloc[1]     # FRED-QD stores metadata/header rows before actual observations.
+    qd = qd.iloc[2:].copy()    # Row 1 contains transformation codes for the variables.
 
-MD['sasdate'] = pd.to_datetime(MD['sasdate'], format='%m/%d/%Y')
-MD = MD.set_index('sasdate')
+    if gdp_col not in qd.columns:
+        raise ValueError(f"{gdp_col} not found in quarterly dataset.")
 
-
-tcodes_qd =  QD.iloc[0]
-QD = QD.iloc[1:].copy()
-QD = QD[QD['sasdate'].str.lower() != 'transform']
-
-QD['sasdate'] = pd.to_datetime(QD['sasdate'], format = '%m/%d/%Y')
-QD = QD.set_index('sasdate')
+    # Parse dates (format may vary; adjust if needed)
+    qd['sasdate'] = pd.to_datetime(qd['sasdate'], format='%m/%d/%Y', errors='coerce')
+    qd.dropna(subset=['sasdate'], inplace=True)
+    qd.set_index('sasdate', inplace=True)
+    
+    # Transform the GDP column
+    code_gdp = int(tcodes_qd[gdp_col])
+    gdp_raw = qd[gdp_col].astype(float)
+    gdp_trans = transform_series(gdp_raw, code_gdp)
+    gdp_trans.name = 'GDP_growth'
+    gdp_trans.dropna(inplace=True)
+    
+    # Convert index to quarterly period
+    gdp_trans.index = gdp_trans.index.to_period('Q')
+    print("FRED‑QD transformation complete. Length:", len(gdp_trans))
+    return gdp_trans
 
 
 def transform_series(series, code):
+    """
+    Apply a given transformation code to a pandas Series.
+    Codes follow McCracken & Ng (2016):
+        1 : no transformation
+        2 : first difference
+        3 : second difference
+        4 : log
+        5 : log first difference
+        6 : log second difference
+    """
     if code == 1:
         return series
-
     elif code == 2:
         return series.diff()
-
     elif code == 3:
         return series.diff().diff()
-
     elif code == 4:
-        return np.log(series)
-
+        return np.log(series.where(series > 0))
     elif code == 5:
-        return np.log(series).diff()
-
+        return np.log(series.where(series > 0)).diff()
     elif code == 6:
-        return np.log(series).diff().diff()
-    
+        return np.log(series.where(series > 0)).diff().diff()
     else:
-        return series
-    
-
-### apply transformations to all MD pred
-def tcode_trans(DF, tcodes):
-# 1. Create a list to hold each transformed series
-    transformed_list = []
-    # 2. Run the loop to transform each column
-    for col in DF.columns:
-        code = int(tcodes[col])
-        # Apply transformation and keep the series name
-        s = transform_series(DF[col].astype(float), code)
-        s.name = col
-        transformed_list.append(s)
-    # 3. "Stitch" them all together at once (This prevents fragmentation)
-    DF_trans = pd.concat(transformed_list, axis=1)
-    # 4. Final cleaning (from Slide 46)
-    DF_trans.dropna(inplace=True)
-
-    return DF_trans
-
-MD_trans = tcode_trans(MD, tcodes_md)
-QD_trans = tcode_trans(QD, tcodes_qd)
-
-print("EDA Step 1 Complete: Data is stationary and de-fragmented.")
+        return series   # fallback (should not happen)
 
 
-# Compare "Real Personal Income" (typically TCODE 5)
-# plt.figure(figsize=(12, 5))
-# plt.subplot(1, 2, 1)
-# plt.plot(MD['RPI'])
-# plt.title("Original RPI (Non-Stationary)")
+def aggregate_to_quarterly(monthly_df):
+    """
+    Convert monthly DataFrame (index = date) to quarterly by averaging.
+    Returns a DataFrame with a PeriodIndex (quarters).
+    """
+    # Add a quarter column
+    monthly_df = monthly_df.copy()
+    monthly_df['quarter'] = monthly_df.index.to_period('Q')
+    # For now, all monthly indicators are aggregated using quarterly averages.
+    quarterly = monthly_df.groupby('quarter').mean()
+    return quarterly
 
-# plt.subplot(1, 2, 2)
-# plt.plot(MD_trans['RPI'])
-# plt.title("Transformed RPI (Stationary)")
-# plt.show() 
 
-### apply transformations to all QD pred
-# transformed_qd_list = []
+def merge_data(monthly_q, gdp_series):
+    """
+    Merge quarterly aggregates of monthly indicators with GDP growth.
+    Returns a DataFrame (rows = quarters) and separate X, y arrays.
+    """
+    data = monthly_q.join(gdp_series, how='inner').dropna()
+    X = data.drop(columns=['GDP_growth']).values
+    y = data['GDP_growth'].values
+    print("Quarterly dataset shape:", data.shape)
+    print("Number of predictors:", X.shape[1])
+    return data
 
-# for col in QD.columns:
-#     code = int(tcodes_qd[col])
-    
-#     s = transform_series(QD[col].astype(float), code)
-#     s.name = col
-    
-#     transformed_qd_list.append(s)
+## Add covid dummy variable 
+def add_covid_dummy(data, start='2020Q1', end='2020Q4'):
+    data = data.copy()
+    start_q = pd.Period(start, freq='Q')
+    end_q = pd.Period(end, freq='Q')
+    data['covid_dummy'] = ((data.index >= start_q) & (data.index <= end_q)).astype(int)
+    return data
 
-# QD_trans = pd.concat(transformed_qd_list, axis=1)
-# QD_trans.dropna(inplace=True)
+## Add one function that prepares the full training dataframe
+def prepare_training_data(md_path, qd_path, gdp_col='GDPC1', add_covid=False):
+    md_trans = load_and_transform_md(md_path)
+    gdp_growth = load_and_transform_qd(qd_path, gdp_col=gdp_col)
+    monthly_q = aggregate_to_quarterly(md_trans)
+    data = merge_data(monthly_q, gdp_growth)
 
-# GDP = QD_trans['GDPC1']
+    if add_covid:
+        data = add_covid_dummy(data)
+
+    return md_trans, monthly_q, data
