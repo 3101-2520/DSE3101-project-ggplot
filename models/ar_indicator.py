@@ -1,5 +1,5 @@
 
-from scripts.config import *
+from config import *
 
 
 def fit_ar_models(monthly_data, selected_names, max_lag=12):
