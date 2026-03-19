@@ -16,16 +16,30 @@ if __name__ == "__main__":
     
     # Step 1: Load and transform monthly data
     MD_trans = load_and_transform_md(md_path)
+
+    # Drop unwanted variables
+    vars_to_drop = ['ACOGNO', 'UMCSENTx', 'TWEXAFEGSMTHx', 'ANDENOx', 'VIXCLSx']
+    MD_trans = MD_trans.drop(columns=vars_to_drop, errors='ignore')
+    print(f"Dropped {len(vars_to_drop)} variables. New shape: {MD_trans.shape}")
     
     # Step 2: Load and transform quarterly GDP
     GDP_growth = load_and_transform_qd(qd_path, gdp_col='GDPC1')
+
+    start_period = pd.Period('1960Q1', freq='Q')
+    end_period = pd.Period('2020Q2', freq='Q')
+    start_date = start_period.start_time
+    end_date = end_period.end_time
+    MD_trans = MD_trans.loc[start_date:end_date]
+    print(f"Filtered MD_trans to {start_date.date()} – {end_date.date()}. New shape: {MD_trans.shape}")
+    GDP_growth = GDP_growth.loc[start_period:end_period]
+    print(f"Filtered GDP_growth to {start_period} – {end_period}. Length: {len(GDP_growth)}")
     
     # Step 3: Aggregate monthly indicators to quarterly
     monthly_q = aggregate_to_quarterly(MD_trans)
     
     # Step 4: Merge with GDP growth
     data, X, y = merge_data(monthly_q, GDP_growth)
-    
+
     # Step 5: Feature selection with rlasso
     feature_names = data.drop(columns=['GDP_growth']).columns
     selected_summary = select_features_rlasso(data, target_col='GDP_growth')
@@ -47,3 +61,4 @@ if __name__ == "__main__":
     
     print("\nAll preprocessing and model fitting complete.")
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
+
