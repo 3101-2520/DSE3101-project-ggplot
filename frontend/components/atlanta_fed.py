@@ -12,11 +12,12 @@ except KeyError:
 
 @st.cache_data(ttl=3600)
 def fetch_nowcast_comparison():
-    # Atlanta Fed: GDPNow (Standard ID)
-    # NY Fed: Staff Nowcast (Note: NYFEDNOWCASTG1 is the most common aggregate ID)
+    # Atlanta Fed: Still the gold standard 'GDPNOW'
+    # St. Louis Fed: 'STLENI' (Excellent, stable alternative to the NY Fed)
+    # Realized GDP: 'A191RL1Q225SBEA' (For historical context)
     series_map = {
         'Atlanta Fed (GDPNow)': 'GDPNOW',
-        'NY Fed (Staff Nowcast)': 'NYFEDNOWCASTG1' 
+        'St. Louis Fed (Nowcast)': 'STLENI'
     }
     
     combined_df = pd.DataFrame()
@@ -24,13 +25,12 @@ def fetch_nowcast_comparison():
     for label, series_id in series_map.items():
         try:
             series_data = fred.get_series(series_id)
-            combined_df[label] = series_data
+            # We take only the last 180 days to keep the 'current' quarter focused
+            combined_df[label] = series_data.tail(180)
         except Exception as e:
             st.warning(f"Could not fetch {label}: {e}")
             
-    # Clean data: sort by date and handle the 'vintages' nature of nowcasts
-    combined_df = combined_df.sort_index().ffill()
-    return combined_df
+    return combined_df.sort_index().ffill()
 
 st.subheader("🏦 Federal Reserve Nowcast Comparison")
 
