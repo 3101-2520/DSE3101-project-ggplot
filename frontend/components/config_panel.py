@@ -9,14 +9,14 @@ def render():
     with st.container():
         ar_model = st.checkbox("AR Model (Benchmark)", value=True)
         atl_fed = st.checkbox("Atlanta Fed (GDPNow)", value=True)
-        ny_fed = st.checkbox("New York Fed Nowcast", value=False)
+        stl_fed = st.checkbox("St. Louis Fed Forecast", value=False)
         hist_mean = st.checkbox("Historical Mean", value=False)
 
     # Compile the list of what is currently checked
     current_selection = []
     if ar_model: current_selection.append("AR Model")
     if atl_fed: current_selection.append("Atlanta Fed")
-    if ny_fed: current_selection.append("New York Fed")
+    if stl_fed: current_selection.append("St. Louis Fed")
     if hist_mean: current_selection.append("Historical Mean")
 
     # --- THE CRITICAL PART ---
