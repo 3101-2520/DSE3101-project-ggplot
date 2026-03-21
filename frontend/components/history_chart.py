@@ -1,99 +1,84 @@
-from pathlib import Path
-import sys
-import pandas as pd
 import streamlit as st
-import plotly.express as px
+import pandas as pd
+import plotly.graph_objects as go
+from .atlanta_fed import get_historical_nowcasts
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
-sys.path.append(str(ROOT_DIR))
+def render(gdp_growth):
+    # 1. Fetch the resampled historical nowcasts
+    nowcasts_df = get_historical_nowcasts()
+    
+    # 2. Get Selection from config_panel
+    year = st.session_state.get('selected_year', 2024)
+    q = st.session_state.get('selected_q', 'Q1')
+    selected_period = pd.Period(f"{year}{q}", freq="Q")
 
-from src.data_preprocessing import load_and_transform_qd
+    if selected_period not in gdp_growth.index:
+        st.warning("Selected period not in dataset.")
+        return
 
-# Load and transform historical data to get quarterly GDP growth rates
-GDP_growth = load_and_transform_qd(str(ROOT_DIR / "data" / "2026-02-QD.csv"))
+    # 3. Filter Historical Window
+    idx = gdp_growth.index.get_loc(selected_period)
+    start, end = max(0, idx-3), min(len(gdp_growth)-1, idx+3)
+    
+    hist_zoom = (gdp_growth.iloc[start:end+1] * 100).to_frame(name="Growth")
+    hist_zoom["label"] = hist_zoom.index.astype(str).str.replace("Q", " Q")
 
-st.title("Quarterly GDP Growth")
+    # Define the "Next Quarter" label for the upcoming, unreleased forecast
+    last_actual_period = hist_zoom.index[-1]
+    next_period = last_actual_period + 1
+    next_label = str(next_period).replace("Q", " Q")
 
-# Inputs
-col1, col2 = st.columns(2)
+    # Define the full X-axis range we want to show on the chart
+    all_x_labels = hist_zoom["label"].tolist() + [next_label]
 
-period_index = GDP_growth.index
-min_year = int(period_index.min().year)
-max_year = int(period_index.max().year)
+    # Filter Fed data so the chart doesn't zoom out to show 3 years of Fed data
+    # when you only want to see a 7-quarter window.
+    if not nowcasts_df.empty:
+        valid_nowcasts = nowcasts_df[nowcasts_df.index.isin(all_x_labels)]
+    else:
+        valid_nowcasts = pd.DataFrame()
 
-with col1:
-    selected_year = st.number_input(
-        "Year",
-        min_value=min_year,
-        max_value=max_year,
-        value=2020,
-        step=1
-    )
+    # 4. Create the Unified Figure
+    fig = go.Figure()
 
-with col2:
-    selected_quarter = st.selectbox("Quarter", ["Q1", "Q2", "Q3", "Q4"])
-
-selected_period = pd.Period(f"{selected_year}{selected_quarter}", freq="Q")
-selected_label = str(selected_period).replace("Q", " Q")
-
-if selected_period in period_index:
-    selected_loc = period_index.get_loc(selected_period)
-
-    # 7 quarters total = selected quarter ± 3 quarters
-    window_size = 7
-    half_window = 3
-
-    start_loc = selected_loc - half_window
-    end_loc = selected_loc + half_window
-
-    # If too close to the start, shift right
-    if start_loc < 0:
-        end_loc += -start_loc
-        start_loc = 0
-
-    # If too close to the end, shift left
-    if end_loc > len(period_index) - 1:
-        shift_left = end_loc - (len(period_index) - 1)
-        start_loc -= shift_left
-        end_loc = len(period_index) - 1
-
-    # Final safeguard
-    start_loc = max(0, start_loc)
-
-    zoom_series = GDP_growth.iloc[start_loc:end_loc + 1]
-    zoom_df = (zoom_series * 100).to_frame(name="GDP_growth").reset_index()
-
-    # Label x-axis as e.g. 2020 Q4
-    zoom_df["quarter_label"] = (
-        zoom_df["sasdate"].astype(str).str.replace("Q", " Q", regex=False)
-    )
-
-    zoom_fig = px.line(
-        zoom_df,
-        x="quarter_label",
-        y="GDP_growth",
-        title=f"GDP Growth around {selected_label}",
-        labels={"GDP_growth": "GDP Growth (%)", "quarter_label": "Quarter"},
-        hover_data={"GDP_growth": ":.2f"}
-    )
-
-    zoom_fig.update_traces(
+    # TRACE: Actual GDP (Solid blue line)
+    fig.add_trace(go.Scatter(
+        x=hist_zoom["label"],
+        y=hist_zoom["Growth"],
         mode="lines+markers",
-        hovertemplate="<b>%{x}</b><br>GDP Growth: %{y:.2f}%<extra></extra>"
+        name="Actual GDP",
+        line=dict(color="#5DADE2", width=4),
+        marker=dict(size=8)
+    ))
+
+    # TRACES: Historical Fed Nowcasts (Dashed lines tracking the same timeline)
+    if not valid_nowcasts.empty:
+        for col in valid_nowcasts.columns:
+            col_data = valid_nowcasts[col].dropna() # Drop gaps
+            fig.add_trace(go.Scatter(
+                x=col_data.index, 
+                y=col_data.values,
+                mode="lines+markers",
+                name=col,
+                line=dict(dash="dot", width=2),
+                marker=dict(size=6)
+            ))
+
+    # 5. Dashboard Styling
+    fig.update_layout(
+        title=f"GDP Growth & Forecasts around {year} {q}",
+        template="plotly_dark", 
+        hovermode="x unified",
+        xaxis_title="Quarter",
+        yaxis_title="GDP Growth (%)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        margin=dict(l=0, r=0, t=50, b=0),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)"
     )
 
-    zoom_fig.add_hline(y=0, line_dash="dash")
+    fig.add_hline(y=0, line_dash="dash", line_color="white", opacity=0.3)
+    fig.update_xaxes(categoryorder="array", categoryarray=all_x_labels)
 
-    zoom_fig.update_yaxes(
-        range=[-10.5, 10.5],
-        tickmode="array",
-        tickvals=[-10, -5, 0, 5, 10],
-        ticksuffix="%",
-        showgrid=True
-    )
-
-    st.plotly_chart(zoom_fig, use_container_width=True)
-else:
-    st.warning("Selected quarter is not in the dataset.")
-
+    st.plotly_chart(fig, use_container_width=True)
 # To run, paste in terminal: streamlit run frontend/components/history_chart.py
