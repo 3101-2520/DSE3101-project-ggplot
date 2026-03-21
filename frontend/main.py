@@ -54,9 +54,9 @@ st.divider()
 # --- 6. MAIN LAYOUT GRID ---
 top_left, top_right = st.columns([1, 2.5])
 
-#with top_left:
+with top_left:
     # Pass gdp_data so it knows which years are available
-    #config_panel.render(gdp_data)
+    config_panel.render()
 
 #with top_right:
     # Renders the small metric cards at the top

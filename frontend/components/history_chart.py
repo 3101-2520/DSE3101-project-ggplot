@@ -7,13 +7,23 @@ def render(gdp_growth):
     # 1. Fetch the resampled historical nowcasts
     nowcasts_df = get_historical_nowcasts()
     
-    # 2. Get Selection from config_panel
-    year = st.session_state.get('selected_year', 2024)
-    q = st.session_state.get('selected_q', 'Q1')
+    # --- RESTORED DATE SELECTION UI ---
+    st.markdown("### Chart Controls")
+    col1, col2 = st.columns(2)
+    
+    # Dynamically get the available years from your CSV
+    min_year = int(gdp_growth.index.min().year)
+    max_year = int(gdp_growth.index.max().year)
+
+    with col1:
+        year = st.number_input("Select Year", min_value=min_year, max_value=max_year, value=2024, step=1)
+    with col2:
+        q = st.selectbox("Select Quarter", ["Q1", "Q2", "Q3", "Q4"])
+        
     selected_period = pd.Period(f"{year}{q}", freq="Q")
 
     if selected_period not in gdp_growth.index:
-        st.warning("Selected period not in dataset.")
+        st.warning(f"Selected period {year} {q} is not in your dataset yet.")
         return
 
     # 3. Filter Historical Window
@@ -23,16 +33,10 @@ def render(gdp_growth):
     hist_zoom = (gdp_growth.iloc[start:end+1] * 100).to_frame(name="Growth")
     hist_zoom["label"] = hist_zoom.index.astype(str).str.replace("Q", " Q")
 
-    # Define the "Next Quarter" label for the upcoming, unreleased forecast
-    last_actual_period = hist_zoom.index[-1]
-    next_period = last_actual_period + 1
-    next_label = str(next_period).replace("Q", " Q")
+    # Lock the X-axis strictly to the 7 periods of actual GDP data
+    all_x_labels = hist_zoom["label"].tolist()
 
-    # Define the full X-axis range we want to show on the chart
-    all_x_labels = hist_zoom["label"].tolist() + [next_label]
-
-    # Filter Fed data so the chart doesn't zoom out to show 3 years of Fed data
-    # when you only want to see a 7-quarter window.
+    # Filter Fed data so the chart doesn't zoom out
     if not nowcasts_df.empty:
         valid_nowcasts = nowcasts_df[nowcasts_df.index.isin(all_x_labels)]
     else:
@@ -51,17 +55,22 @@ def render(gdp_growth):
         marker=dict(size=8)
     ))
 
-    # TRACES: Historical Fed Nowcasts (Dashed lines tracking the same timeline)
+    # --- LINK TICKBOXES TO THE GRAPH ---
+    # Safely get the list of checked boxes from config_panel.py
+    active_models = st.session_state.get('active_models', [])
+
+    # TRACE: Atlanta Fed 
     if not valid_nowcasts.empty:
-        for col in valid_nowcasts.columns:
-            col_data = valid_nowcasts[col].dropna() # Drop gaps
+        # ONLY draw it if the user ticked the box AND the data exists
+        if "Atlanta Fed" in active_models and 'Atlanta Fed Forecast' in valid_nowcasts.columns:
+            col_data = valid_nowcasts['Atlanta Fed Forecast'].dropna()
             fig.add_trace(go.Scatter(
                 x=col_data.index, 
                 y=col_data.values,
                 mode="lines+markers",
-                name=col,
-                line=dict(dash="dot", width=2),
-                marker=dict(size=6)
+                name="Atlanta Fed (GDPNow)",
+                line=dict(dash="dot", width=3, color="#E67E22"), # Orange to stand out
+                marker=dict(size=8)
             ))
 
     # 5. Dashboard Styling
@@ -81,4 +90,3 @@ def render(gdp_growth):
     fig.update_xaxes(categoryorder="array", categoryarray=all_x_labels)
 
     st.plotly_chart(fig, use_container_width=True)
-# To run, paste in terminal: streamlit run frontend/components/history_chart.py

@@ -21,7 +21,9 @@ def get_historical_nowcasts():
                 # Grab ~3 years of history to ensure it covers your chart window
                 series_data = fred.get_series(series_id)
                 combined_df[label] = series_data.tail(1000) 
-            except Exception:
+            except Exception as e:
+                # WE ADDED THIS LINE TO SEE THE ERROR
+                st.error(f"🚨 Failed to fetch {label}: {e}") 
                 continue
                 
         if combined_df.empty:
