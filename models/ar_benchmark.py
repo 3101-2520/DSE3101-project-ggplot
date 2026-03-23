@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
-from scripts.data_preprocessing import load_and_transform_qd
+from src.data_preprocessing import load_and_transform_qd
 
 # ----------------------------------------------------------------------
 # AR model functions

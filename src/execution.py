@@ -2,6 +2,7 @@
 from config import *
 from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly, load_and_transform_qd, merge_data
 from src.feature_selection import select_features_rlasso
+from src.feature_selection import calculate_vif, get_high_correlation_pairs
 from models.ar_indicator import fit_ar_models
 from models.bridge_model import fit_bridge_model
 
@@ -30,6 +31,12 @@ if __name__ == "__main__":
     feature_names = data.drop(columns=['GDP_growth']).columns
     selected_summary = select_features_rlasso(data, target_col='GDP_growth')
     selected = list(selected_summary["feature"])
+
+    # Calculate VIF and correlated pairs 
+    vif_df = calculate_vif(data, selected)
+    corr_pairs = get_high_correlation_pairs(data, selected)
+    print(vif_df)
+    print(corr_pairs)
     
     # Step 6: Fit bridge equation (OLS) using selected variables
     bridge_model, bridge_coefs = fit_bridge_model(data, selected)
