@@ -2,7 +2,7 @@
 from config import *
 
 
-def fit_ar_models(monthly_data, selected_names, max_lag=12):
+def fit_ar_models(monthly_data, selected_names, max_lag=12, verbose=VERBOSE):
     """
     Fits autoregressive (AR) models for each selected monthly indicator.
 
@@ -35,7 +35,8 @@ def fit_ar_models(monthly_data, selected_names, max_lag=12):
         # Reset index to integer positions (0,1,2,…) – eliminates date complications
         series = series.reset_index(drop=True)
         
-        print(f"\nAttempting AR for {name}: length = {len(series)}")
+        if verbose:
+            print(f"\nAttempting AR for {name}: length = {len(series)}")
         
         best_aic = np.inf
         best_model = None
@@ -55,9 +56,11 @@ def fit_ar_models(monthly_data, selected_names, max_lag=12):
         
         if best_model is not None:
             ar_models[name] = best_model
-            print(f"✓ AR({best_p}) fitted for {name}")
+            if verbose:
+                print(f"✓ AR({best_p}) fitted for {name}")
         else:
-            print(f"✗ No AR model could be fitted for {name}. Using mean fallback.")
+            if verbose:
+                print(f"✗ No AR model could be fitted for {name}. Using mean fallback.")
             # Fallback: always predict the series mean
             class MeanForecast:
                 def forecast(self, steps):
@@ -65,3 +68,57 @@ def fit_ar_models(monthly_data, selected_names, max_lag=12):
             ar_models[name] = MeanForecast()
     
     return ar_models
+
+def fill_ragged_edge(monthly_data, ar_models, selected_names, verbose=VERBOSE):
+    """
+    Fills the ragged edge of the monthly indicators using the fitted AR models.
+
+    For each selected indicator, the corresponding AR model is used to forecast values for
+    the next 3 months (1 quarter) beyond the last available date. The original monthly data
+    is extended with these forecasts, resulting in a DataFrame that has no missing values
+    for the selected indicators up to 3 months after the last date.
+
+    Parameters
+    ----------
+    monthly_data : pd.DataFrame
+        Original monthly DataFrame with date index and all indicators.
+    ar_models : dict
+        Dictionary of fitted AR models for each selected indicator (output of `fit_ar_models`).
+    selected_names : list of str
+        Names of the indicators for which forecasts should be generated.
+
+    Returns
+    -------
+    pd.DataFrame
+        Extended monthly DataFrame with forecasts filled in for the ragged edge.
+    """
+    filled_data = monthly_data.copy()
+    
+    for name in selected_names:
+        series = filled_data[name].copy()
+        # skip if no missing values at the end (i.e., no ragged edge)
+        if not series.isna().any():
+            if verbose:
+                print(f"No ragged edge for {name}, skipping AR forecast.")
+            continue
+        last_valid_index = series.last_valid_index()
+        # last observation date for this series
+        if last_valid_index is None:
+            if verbose:
+                print(f"Warning: {name} has no valid data to fit AR model. Skipping.")
+            continue
+        # all missig values after last_valid_index
+        tail = series.loc[last_valid_index:].copy()
+        n_missing = tail.isna().sum()
+        if n_missing == 0:
+            if verbose:
+                print(f"No missing values at the end of {name}, skipping AR forecast.")
+            continue
+        forecasts = ar_models[name].forecast(steps=n_missing)
+
+        # fill the missing values
+        missing_idx = series.loc[last_valid_index:].index[series.loc[last_valid_index:].isna()]
+        filled_data.loc[missing_idx, name] = forecasts
+        if verbose:
+            print(f"Filled {n_missing} missing values for {name} using AR forecast.")
+    return filled_data

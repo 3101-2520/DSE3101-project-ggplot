@@ -3,15 +3,10 @@ AR Benchmark Model for GDP Growth
 --------------------------------
 This script implements a simple AR(p) benchmark model for nowcasting GDP growth.
 """
-
+from config import *
 import numpy as np
+import pandas as pd
 from statsmodels.tsa.ar_model import AutoReg
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.append(str(ROOT))
-from scripts.data_preprocessing import load_and_transform_qd
 
 # ----------------------------------------------------------------------
 # AR model functions
@@ -31,30 +26,48 @@ def fit_ar_benchmark(series, max_lag = 8):
         except:
             continue
     print(f"Selected AR({best_p}) model with AIC: {best_aic:.2f}")
-    return best_model
+    return best_model, best_p
 
-def forecast_gdp(model, steps=4):
-    forecast = model.forecast(steps=steps)
-    print("Next quarter AR nowcast:", forecast.iloc[0])
-    print("\nGDP Growth Forecast:")
-    print(forecast)
-    return forecast
+def run_ar_benchmark(data, test_size=8, target_col = "GDP_growth", max_lag = 8, verbose = VERBOSE):
+    """
+    Rolling-window AR benchmark evaluation.
+    """
+    results = []
+    total_obs = len(data)
+    train_size = total_obs - test_size
 
-# ----------------------------------------------------------------------
-# Main execution
-# ----------------------------------------------------------------------
-if __name__ == "__main__":
+    for i in range(test_size):
+        train_end_index = train_size - 1 + i
+        forecast_index = train_size + i
 
-    ROOT = Path(__file__).resolve().parents[1]
-    qd_path = ROOT / "data/2026-02-QD.csv"
+        train_data = data.iloc[i:train_end_index + 1].copy()
+        forecast_quarter = data.index[forecast_index]
+        if verbose:
+             print(f"\nRolling step {i+1}/{test_size}")
+             print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
+             print(f"Forecast quarter: {forecast_quarter}")
+
+        y_train = train_data[target_col].dropna()
+        model, best_p = fit_ar_benchmark(y_train, max_lag=max_lag)
+        y_pred = model.forecast(steps=1).iloc[0]
+        y_actual = data.loc[forecast_quarter, target_col]
+        results.append({
+            "quarter": forecast_quarter,
+            "actual": y_actual,
+            "predicted": y_pred
+        })
     
-    # Load and transform quarterly data
-    GDP_growth = load_and_transform_qd(qd_path)
+    results_df = pd.DataFrame(results)
 
-    # Fit AR benchmark model
-    ar_model = fit_ar_benchmark(GDP_growth)
-    print(ar_model.summary())
+    if not results_df.empty:
+        results_df['error'] = results_df['actual'] - results_df['predicted']
+        rmse = np.sqrt((results_df['error'] ** 2).mean())
+        mae = np.mean(np.abs(results_df['error']))
 
-    # Forecast GDP growth for the next 4 quarters
-    forecast_gdp(ar_model, steps=4)
-    print("\nAR benchmark complete.")
+        print("\nAR Benchmark Results:")
+        print(results_df)
+        print(f"RMSE: {rmse:.4f}")
+        print(f"MAE: {mae:.4f}")
+    else:
+        print("No AR benchmark forecasts were generated.")
+    return results_df
