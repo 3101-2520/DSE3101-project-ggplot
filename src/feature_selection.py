@@ -22,14 +22,6 @@ def select_features_rlasso(data, target_col='GDP_growth', exclude_cols=None, thr
     cols_to_drop = [target_col] + [col for col in exclude_cols if col in data.columns]
     X_df = data.drop(columns=cols_to_drop)
 
-    # drop constant / zero-variance columns before scaling 
-    non_constant_cols = X_df.columns[X_df.std(ddof=0)>0]
-    dropped_constant_cols = list(set(X_df.columns) - set(non_constant_cols))
-    X_df = X_df[non_constant_cols]
-
-    if dropped_constant_cols:
-        print("Dropped constant columns before LASSO:", dropped_constant_cols)
-
     y = data[target_col].values
     feature_names = X_df.columns.to_numpy()
     X = X_df.values 
@@ -73,7 +65,7 @@ def select_features_rlasso(data, target_col='GDP_growth', exclude_cols=None, thr
 ## calculate VIF for selected features 
 def calculate_vif(data, features): 
     X = data[features].dropna().copy()
-    
+
     vif_df = pd.DataFrame()
     vif_df['feature'] = X.columns
     vif_df['VIF'] = [
@@ -90,7 +82,6 @@ def get_high_correlation_pairs(data, features, threshold=0.8):
     Return pairs of selected features with high absolute correlation.
     """
     X = data[features].dropna().copy()
-
     corr_matrix = X.corr().abs()
 
     pairs = []
@@ -99,7 +90,7 @@ def get_high_correlation_pairs(data, features, threshold=0.8):
     for i in range(len(cols)):
         for j in range(i + 1, len(cols)):
             corr_val = corr_matrix.iloc[i, j]
-            if pd.notna(corr_val) and corr_val > threshold:
+            if corr_val > threshold:
                 pairs.append({
                     'feature_1': cols[i],
                     'feature_2': cols[j],

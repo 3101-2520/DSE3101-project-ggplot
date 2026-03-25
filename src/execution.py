@@ -1,6 +1,6 @@
 
 from config import *
-from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly, load_and_transform_qd, merge_data, add_covid_dummy
+from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly, load_and_transform_qd, merge_data
 from src.feature_selection import select_features_rlasso, get_high_correlation_pairs
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.bridge_model import fit_bridge_model
@@ -42,7 +42,6 @@ if __name__ == "__main__":
     
     # Step 4: Merge with GDP growth
     data, X, y = merge_data(monthly_q, GDP_growth)
-    data = add_covid_dummy(data, start='2020Q1', end='2020Q4')  # Add COVID dummy variable
 
     # Step 5: Train/test split (keep last 8 quarters for testing)
     test_size = 8
