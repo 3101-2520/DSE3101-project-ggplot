@@ -3,29 +3,43 @@ from src.data_preprocessing import aggregate_to_quarterly
 from models.bridge_model import fit_bridge_model
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 
-def run_rolling_nowcast(data, md_trans, selected, test_size=8, max_lag=12, target_col='GDP_growth', verbose=VERBOSE):
+def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80, max_lag=12, target_col='GDP_growth', verbose=VERBOSE):
     """
-    Rolling window nowcast evalusation.
-    Keep selected variables fixed based on training data.
-    Refits bridge model each rolling step.
-    Refits AR models for each selected indicator at each step, using all available data up to that quarter.
-    Returns a DataFrame with actual vs nowcasted GDP growth for the test period.
+    Rolling window nowcast evaluation with fixed window size.
+    For each forecast quarter (the last test_size quarters), trains on the most recent
+    window_size quarters of data, refits bridge model and AR models, then nowcasts.
+
+    Parameters:
+    - data: quarterly DataFrame with all indicators and GDP growth
+    - md_trans: monthly transformed DataFrame (used for ragged edge)
+    - selected: list of selected indicators
+    - test_size: number of quarters to nowcast (taken from the end of data)
+    - window_size: fixed number of quarters in the training window
+    - max_lag: maximum lag for AR models
+    - target_col: name of GDP growth column
+    - verbose: print progress if True
+
+    Returns:
+    - results_df: DataFrame with quarter, actual, predicted, error
     """
     results = []
     total_obs = len(data)
-    train_size = total_obs - test_size
+    # The indices of the last test_size quarters
+    forecast_indices = list(range(total_obs - test_size, total_obs))
 
-    for i in range(test_size):
-        train_end_index = train_size - 1 + i
-        forecast_index = train_size + i
+    for idx in forecast_indices:
+        # Training window: window_size quarters before the forecast quarter
+        start_idx = idx - window_size
+        if start_idx < 0:
+            print(f"Warning: Not enough data to form a window of {window_size} quarters before {data.index[idx]}. Skipping.")
+            continue
 
-        train_data = data.iloc[i:train_end_index + 1].copy()
-        forecast_quarter = data.index[forecast_index]
+        train_data = data.iloc[start_idx:idx].copy()
+        forecast_quarter = data.index[idx]
 
         if verbose:
-             print(f"\nRolling step {i+1}/{test_size}")
-             print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
-             print(f"Forecast quarter: {forecast_quarter}")
+            print(f"\nNowcasting {forecast_quarter}")
+            print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
 
         # Fit bridge model on current training data
         bridge_model, bridge_coefs = fit_bridge_model(train_data, selected, target_col=target_col)
@@ -45,22 +59,17 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, max_lag=12, targe
 
         # Extract predictor row for forecast quarter
         if forecast_quarter not in monthly_q_filled.index:
-            print(f"Warning: Forecast quarter {forecast_quarter} not in filled quarterly data. Skipping this step.")
+            print(f"Warning: Forecast quarter {forecast_quarter} not in filled quarterly data. Skipping.")
             continue
         x_forecast = monthly_q_filled.loc[[forecast_quarter], selected].copy()
         x_forecast = x_forecast.replace([np.inf, -np.inf], np.nan)
 
         if x_forecast.empty:
-            print(f"Warning: No predictor data available for forecast quarter {forecast_quarter}. Skipping this step.")
+            print(f"Warning: No predictor data for {forecast_quarter}. Skipping.")
             continue
 
-        x_forecast = sm.add_constant(x_forecast, has_constant='add')  # add constant for prediction
-        x_forecast = x_forecast.reindex(columns = bridge_model.model.exog_names)
-
-        if verbose:
-            print("\nPrediction row shape:", x_forecast.shape)
-            print("Prediction row columns:", list(x_forecast.columns))
-            print("Model expects columns:", list(bridge_model.model.exog_names))
+        x_forecast = sm.add_constant(x_forecast, has_constant='add')
+        x_forecast = x_forecast.reindex(columns=bridge_model.model.exog_names)
 
         # Nowcast GDP growth for forecast quarter
         y_pred = bridge_model.predict(x_forecast).iloc[0]
