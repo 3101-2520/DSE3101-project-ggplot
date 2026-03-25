@@ -7,15 +7,6 @@ from config import *
 import numpy as np
 import pandas as pd
 from statsmodels.tsa.ar_model import AutoReg
-<<<<<<< HEAD
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.append(str(ROOT))
-from src.data_preprocessing import load_and_transform_qd
-=======
->>>>>>> 3bbc690412befdd4e86e2e7e3658a70d860982fe
 
 # ----------------------------------------------------------------------
 # AR model functions

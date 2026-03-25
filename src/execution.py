@@ -4,7 +4,7 @@ from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly
 from src.feature_selection import select_features_rlasso, get_high_correlation_pairs
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.bridge_model import fit_bridge_model
-from models.evaluation import run_rolling_nowcast
+from models.evaluation import run_rolling_nowcast, run_rf_benchmark
 from models.ar_benchmark import run_ar_benchmark
 from models.adl_benchmark import run_adl_benchmark
 
@@ -87,10 +87,42 @@ if __name__ == "__main__":
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
 
     # Step 12: Run rolling nowcast evaluation
-    rolling_results = run_rolling_nowcast(data, MD_trans, selected, test_size=test_size, max_lag = 12, target_col='GDP_growth')
+    # Original bridge
+    rolling_results_bridge = run_rolling_nowcast(
+        data, MD_trans, selected,
+        test_size=test_size,
+        max_lag=12,
+        target_col='GDP_growth',
+        include_gdp_lags=False
+    )
+    # Augmented bridge
+    rolling_results_bridge_lags = run_rolling_nowcast(
+        data, MD_trans, selected,
+        test_size=test_size,
+        max_lag=12,
+        target_col='GDP_growth',
+        include_gdp_lags=True
+    )
 
     # Step 13: Run AR benchmark evaluation
     ar_benchmark_results = run_ar_benchmark(data, test_size=test_size, target_col='GDP_growth', max_lag=8)
 
     # Step 14: Run ADL benchmark evaluation
     adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
+
+    # Step 15: Run RF benchmark evaluation
+    rf_benchmark_results = run_rf_benchmark(
+        data,
+        selected,
+        test_size=test_size,
+        target_col='GDP_growth',
+        rf_params={
+            "n_estimators": 500,
+            "max_depth": 5,
+            "min_samples_split": 5,
+            "min_samples_leaf": 2,
+            "max_features": "sqrt",
+            "random_state": 42,
+            "n_jobs": -1
+        }
+    )
