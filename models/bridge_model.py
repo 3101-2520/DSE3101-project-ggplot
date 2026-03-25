@@ -1,9 +1,7 @@
 
 from config import *
 
-
-
-def fit_bridge_model(data, selected_names, target_col='GDP_growth'):
+def fit_bridge_model(data, selected_names, target_col='GDP_growth', verbose = VERBOSE):
     """
     Fit OLS bridge equation: GDP_growth ~ selected indicators (quarterly aggregates).
     Returns the fitted model and a dictionary of coefficients.
@@ -16,7 +14,8 @@ def fit_bridge_model(data, selected_names, target_col='GDP_growth'):
     X_sel = sm.add_constant(X_sel)
     y = mdata['GDP_growth']
     model = sm.OLS(y, X_sel).fit()
-    print(model.summary())
+    if verbose:
+        print(model.summary())
     
     # Store coefficients
     coef_dict = {'intercept': model.params['const']}
