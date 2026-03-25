@@ -10,9 +10,10 @@ from models.ar_benchmark import fit_ar_benchmark
 # We cache this so the math only runs once per session
 @st.cache_data
 def get_ar_predictions(gdp_series):
-    # Train the model on the full historical dataset
-    model = fit_ar_benchmark(gdp_series)
-    # Return the historical predictions (fitted values)
+    # Unpack the tuple: grab the model and ignore the best_p variable for the chart
+    model, best_p = fit_ar_benchmark(gdp_series)
+    
+    # Return the historical predictions from the model object
     return model.fittedvalues
 
 def render(gdp_growth):
