@@ -4,6 +4,7 @@ from models.bridge_model import fit_bridge_model
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.random_forest import fit_rf_model, predict_rf_model
 
+<<<<<<< HEAD
 
 # def run_rolling_nowcast(data, md_trans, selected, test_size=8, max_lag=12, target_col='GDP_growth', verbose=VERBOSE):
 #     """
@@ -104,19 +105,33 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, max_lag=12,
     If include_gdp_lags=True, the bridge model is augmented with GDP_growth_lag1 and GDP_growth_lag2.
 
     Returns a DataFrame with actual vs predicted GDP growth for the test period.
+=======
+def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
+                        max_lag=12, target_col='GDP_growth', verbose=VERBOSE):
+    """
+    Rolling window nowcast evaluation with fixed window size.
+    Adds two lags of GDP and a COVID dummy as additional predictors.
+    For each forecast quarter (the last test_size quarters), trains on the most recent
+    window_size quarters of data, refits bridge model and AR models, then nowcasts.
+>>>>>>> 8aff10ace0e46f40544ddabd710c50887602fd34
     """
     results = []
     total_obs = len(data)
-    train_size = total_obs - test_size
+    # The indices of the last test_size quarters
+    forecast_indices = list(range(total_obs - test_size, total_obs))
 
-    for i in range(test_size):
-        train_end_index = train_size - 1 + i
-        forecast_index = train_size + i
+    for idx in forecast_indices:
+        # Training window: window_size quarters before the forecast quarter
+        start_idx = idx - window_size
+        if start_idx < 0:
+            print(f"Warning: Not enough data to form a window of {window_size} quarters before {data.index[idx]}. Skipping.")
+            continue
 
-        train_data = data.iloc[i:train_end_index + 1].copy()
-        forecast_quarter = data.index[forecast_index]
+        train_data = data.iloc[start_idx:idx].copy()
+        forecast_quarter = data.index[idx]
 
         if verbose:
+<<<<<<< HEAD
             print(f"\nRolling step {i+1}/{test_size}")
             print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
             print(f"Forecast quarter: {forecast_quarter}")
@@ -129,6 +144,19 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, max_lag=12,
             include_gdp_lags=include_gdp_lags,
             verbose=verbose
         )
+=======
+            print(f"\nNowcasting {forecast_quarter}")
+            print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
+
+        # Create lagged GDP and ensure COVID dummy exists
+        train_data['GDP_growth_lag1'] = train_data[target_col].shift(1)
+        train_data['GDP_growth_lag2'] = train_data[target_col].shift(2)
+        # Combine predictors
+        all_predictors = selected + ['GDP_growth_lag1', 'GDP_growth_lag2', 'covid_dummy']
+
+        # Fit bridge model on current training data with all predictors
+        bridge_model, bridge_coefs = fit_bridge_model(train_data, all_predictors, target_col=target_col)
+>>>>>>> 8aff10ace0e46f40544ddabd710c50887602fd34
 
         # Restrict monthly data to training period for AR fitting
         forecast_end_date = forecast_quarter.end_time
@@ -145,12 +173,18 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, max_lag=12,
 
         # Extract predictor row for forecast quarter
         if forecast_quarter not in monthly_q_filled.index:
-            print(f"Warning: Forecast quarter {forecast_quarter} not in filled quarterly data. Skipping this step.")
+            print(f"Warning: Forecast quarter {forecast_quarter} not in filled quarterly data. Skipping.")
             continue
 
         x_forecast = monthly_q_filled.loc[[forecast_quarter], selected].copy()
+            # Add lags and dummy from the original data (these are known at forecast time)
+            x_forecast['GDP_growth_lag1'] = data[target_col].shift(1).loc[forecast_quarter]
+            x_forecast['GDP_growth_lag2'] = data[target_col].shift(2).loc[forecast_quarter]
+            x_forecast['covid_dummy'] = data.loc[forecast_quarter, 'covid_dummy']
+
         x_forecast = x_forecast.replace([np.inf, -np.inf], np.nan)
 
+<<<<<<< HEAD
         # Add lagged GDP terms if requested
         if include_gdp_lags:
             data_with_lags = data.copy()
@@ -175,6 +209,15 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, max_lag=12,
             print("\nPrediction row shape:", x_forecast.shape)
             print("Prediction row columns:", list(x_forecast.columns))
             print("Model expects columns:", list(bridge_model.model.exog_names))
+=======
+        if x_forecast.empty:
+            print(f"Warning: No predictor data for {forecast_quarter}. Skipping.")
+            continue
+
+        # Reindex to match the model's expected columns (including constant)
+        x_forecast = sm.add_constant(x_forecast, has_constant='add')
+        x_forecast = x_forecast.reindex(columns=bridge_model.model.exog_names)
+>>>>>>> 8aff10ace0e46f40544ddabd710c50887602fd34
 
         # Nowcast GDP growth for forecast quarter
         y_pred = bridge_model.predict(x_forecast).iloc[0]

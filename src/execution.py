@@ -86,6 +86,7 @@ if __name__ == "__main__":
     print("\nAll preprocessing and model fitting complete.")
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
 
+<<<<<<< HEAD
     # Step 12: Run rolling nowcast evaluation
     # Original bridge
     rolling_results_bridge = run_rolling_nowcast(
@@ -103,11 +104,45 @@ if __name__ == "__main__":
         target_col='GDP_growth',
         include_gdp_lags=True
     )
+=======
+    # Step 12: Rolling window evaluation (optimal window size = 180)
+    test_size = 8
+    window_size = 180
+    rolling_results = run_rolling_nowcast(
+        data, MD_trans, selected,
+        test_size=test_size,
+        window_size=window_size,
+        max_lag=12,
+        target_col='GDP_growth',
+        verbose=VERBOSE
+    )
+
+    # Step 12: Rolling window evaluation with fixed window sizes (grid search)
+    """
+    test_size = 8                     # last 8 quarters (2018Q3–2020Q2)
+    # List of window sizes to test (quarters)
+    window_sizes = [60, 80, 100, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 234]
+
+    for ws in window_sizes:
+        print(f"\n{'='*60}")
+        print(f"Testing window size = {ws} quarters")
+        print('='*60)
+        run_rolling_nowcast(
+            data, MD_trans, selected,
+            test_size=test_size,
+            window_size=ws,
+            max_lag=12,
+            target_col='GDP_growth',
+            verbose=VERBOSE
+        )
+    """
+>>>>>>> 8aff10ace0e46f40544ddabd710c50887602fd34
 
     # Step 13: Run AR benchmark evaluation
     ar_benchmark_results = run_ar_benchmark(data, test_size=test_size, target_col='GDP_growth', max_lag=8)
 
     # Step 14: Run ADL benchmark evaluation
+<<<<<<< HEAD
     adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
 
     # Step 15: Run RF benchmark evaluation
@@ -126,3 +161,6 @@ if __name__ == "__main__":
             "n_jobs": -1
         }
     )
+=======
+    adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
+>>>>>>> 8aff10ace0e46f40544ddabd710c50887602fd34
