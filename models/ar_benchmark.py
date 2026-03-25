@@ -12,7 +12,7 @@ from statsmodels.tsa.ar_model import AutoReg
 # AR model functions
 # ----------------------------------------------------------------------
 
-def fit_ar_benchmark(series, max_lag = 8, verbose = VERBOSE):
+def fit_ar_benchmark(series, max_lag = 8):
     best_aic = np.inf
     best_model = None
     best_p = None
@@ -25,8 +25,7 @@ def fit_ar_benchmark(series, max_lag = 8, verbose = VERBOSE):
                 best_p = p
         except:
             continue
-    if verbose:
-        print(f"Selected AR({best_p}) model with AIC: {best_aic:.2f}")
+    print(f"Selected AR({best_p}) model with AIC: {best_aic:.2f}")
     return best_model, best_p
 
 def run_ar_benchmark(data, test_size=8, target_col = "GDP_growth", max_lag = 8, verbose = VERBOSE):
