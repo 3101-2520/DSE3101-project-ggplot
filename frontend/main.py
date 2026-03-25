@@ -26,9 +26,9 @@ gdp_data = get_historical_data()
 
 # --- 4. COMPONENT IMPORTS ---
 try:
-    from frontend.components import config_panel, live_metric, history_chart
+    from frontend.components import config_panel, live_metric, history_chart, subscription_ui
 except ModuleNotFoundError:
-    from components import config_panel, live_metric, history_chart
+    from components import config_panel, live_metric, history_chart, subscription_ui
 
 # --- 5. PAGE STYLING ---
 #st.set_page_config(layout="wide", page_title="GDP Nowcast Terminal")
@@ -63,7 +63,8 @@ with top_left:
     # Pass gdp_data so it knows which years are available
     config_panel.render()
 
-#with top_right:
+with top_right:
+    subscription_ui.render()
     # Renders the small metric cards at the top
     #live_metric.render()
 
