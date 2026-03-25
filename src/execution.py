@@ -7,6 +7,7 @@ from models.bridge_model import fit_bridge_model
 from models.evaluation import run_rolling_nowcast, run_rf_benchmark
 from models.ar_benchmark import run_ar_benchmark
 from models.adl_benchmark import run_adl_benchmark
+from models.flash_nowcast import run_rolling_flash_nowcast
 
 # ----------------------------------------------------------------------
 # Main execution
@@ -40,8 +41,14 @@ if __name__ == "__main__":
     # Step 3: Aggregate monthly indicators to quarterly
     monthly_q = aggregate_to_quarterly(MD_trans)
     
+    
     # Step 4: Merge with GDP growth
     data, X, y = merge_data(monthly_q, GDP_growth)
+
+    # Add COVID dummy
+    data['covid_dummy'] = 0
+    data.loc[(data.index >= pd.Period('2020Q1', freq='Q')) & 
+            (data.index <= pd.Period('2020Q2', freq='Q')), 'covid_dummy'] = 1
 
     # Step 5: Train/test split (keep last 8 quarters for testing)
     test_size = 8
@@ -52,7 +59,7 @@ if __name__ == "__main__":
     print(f"Testing sample: {test_data.index.min()} to {test_data.index.max()}, shape = {test_data.shape}")
 
     # Step 6: Feature selection with rlasso on training data
-    selected_summary = select_features_rlasso(train_data, target_col='GDP_growth')
+    selected_summary = select_features_rlasso(train_data, target_col='GDP_growth', exclude_cols = ['covid_dummy'])
     selected = list(selected_summary["feature"])
 
     # Step 7: Check for high correlation among selected features
@@ -86,25 +93,6 @@ if __name__ == "__main__":
     print("\nAll preprocessing and model fitting complete.")
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
 
-<<<<<<< HEAD
-    # Step 12: Run rolling nowcast evaluation
-    # Original bridge
-    rolling_results_bridge = run_rolling_nowcast(
-        data, MD_trans, selected,
-        test_size=test_size,
-        max_lag=12,
-        target_col='GDP_growth',
-        include_gdp_lags=False
-    )
-    # Augmented bridge
-    rolling_results_bridge_lags = run_rolling_nowcast(
-        data, MD_trans, selected,
-        test_size=test_size,
-        max_lag=12,
-        target_col='GDP_growth',
-        include_gdp_lags=True
-    )
-=======
     # Step 12: Rolling window evaluation (optimal window size = 180)
     test_size = 8
     window_size = 180
@@ -136,13 +124,23 @@ if __name__ == "__main__":
             verbose=VERBOSE
         )
     """
->>>>>>> 8aff10ace0e46f40544ddabd710c50887602fd34
+    # Step 13: Run flash nowcast evaluation
+    flash_results = run_rolling_flash_nowcast(
+        data=data,
+        md_trans=MD_trans,
+        selected=selected,
+        test_size=test_size,
+        window_size=80,
+        max_lag=12,
+        target_col='GDP_growth',
+        flashes=(1, 2, 3),
+        verbose=VERBOSE
+    )
 
     # Step 13: Run AR benchmark evaluation
     ar_benchmark_results = run_ar_benchmark(data, test_size=test_size, target_col='GDP_growth', max_lag=8)
 
     # Step 14: Run ADL benchmark evaluation
-<<<<<<< HEAD
     adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
 
     # Step 15: Run RF benchmark evaluation
@@ -161,6 +159,3 @@ if __name__ == "__main__":
             "n_jobs": -1
         }
     )
-=======
-    adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
->>>>>>> 8aff10ace0e46f40544ddabd710c50887602fd34

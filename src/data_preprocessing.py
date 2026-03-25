@@ -137,9 +137,11 @@ def prepare_training_data(md_path, qd_path, gdp_col='GDPC1', add_covid=False):
     md_trans = load_and_transform_md(md_path)
     gdp_growth = load_and_transform_qd(qd_path, gdp_col=gdp_col)
     monthly_q = aggregate_to_quarterly(md_trans)
-    data = merge_data(monthly_q, gdp_growth)
+    data, _, _ = merge_data(monthly_q, gdp_growth)
 
     if add_covid:
         data = add_covid_dummy(data)
 
     return md_trans, monthly_q, data
+
+
