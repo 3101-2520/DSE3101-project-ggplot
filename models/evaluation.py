@@ -62,6 +62,11 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80, m
             print(f"Warning: Forecast quarter {forecast_quarter} not in filled quarterly data. Skipping.")
             continue
         x_forecast = monthly_q_filled.loc[[forecast_quarter], selected].copy()
+        gdp_lag1 = data[target_col].shift(1)
+        gdp_lag2 = data[target_col].shift(2)
+        x_forecast['GDP_growth_lag1'] = gdp_lag1.loc[forecast_quarter]
+        x_forecast['GDP_growth_lag2'] = gdp_lag2.loc[forecast_quarter]
+        x_forecast['covid_dummy'] = data.loc[forecast_quarter, 'covid_dummy']
         x_forecast = x_forecast.replace([np.inf, -np.inf], np.nan)
 
         if x_forecast.empty:
