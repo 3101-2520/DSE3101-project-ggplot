@@ -143,4 +143,3 @@ def prepare_training_data(md_path, qd_path, gdp_col='GDPC1', add_covid=False):
         data = add_covid_dummy(data)
 
     return md_trans, monthly_q, data
-
