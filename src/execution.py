@@ -8,6 +8,8 @@ from models.evaluation import run_rolling_nowcast, run_rf_benchmark
 from models.ar_benchmark import run_ar_benchmark
 from models.adl_benchmark import run_adl_benchmark
 from models.flash_nowcast import run_rolling_flash_nowcast
+from sklearn.ensemble import RandomForestRegressor 
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 
 # ----------------------------------------------------------------------
 # Main execution
@@ -144,18 +146,35 @@ if __name__ == "__main__":
     adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
 
     # Step 15: Run RF benchmark evaluation
-    rf_benchmark_results = run_rf_benchmark(
-        data,
-        selected,
+
+    X_train = train_data[selected]
+    y_train = train_data['GDP_growth']
+    
+    tscv = TimeSeriesSplit(n_splits=5)
+    param_grid = {
+        'n_estimators': [100, 200, 300],
+        'max_depth': [5, 10, 15, None],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4]
+    }
+    rf = RandomForestRegressor(random_state=42)
+    grid_search = GridSearchCV(
+        rf,
+        param_grid,
+        cv=tscv,
+        scoring='neg_mean_squared_error',
+        verbose=1,
+        n_jobs=-1
+    )
+    grid_search.fit(X_train, y_train)
+    best_rf_params = grid_search.best_params_
+    print("\nBest RF parameters found:")
+    print(best_rf_params)
+
+    rf_results = run_rf_benchmark(
+        data=data,
+        selected=selected,
         test_size=test_size,
-        target_col='GDP_growth',
-        rf_params={
-            "n_estimators": 500,
-            "max_depth": 5,
-            "min_samples_split": 5,
-            "min_samples_leaf": 2,
-            "max_features": "sqrt",
-            "random_state": 42,
-            "n_jobs": -1
-        }
+        target_col="GDP_growth",
+        rf_params=best_rf_params
     )
