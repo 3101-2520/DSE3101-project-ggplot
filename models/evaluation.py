@@ -88,11 +88,13 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
         results_df["error"] = results_df["actual"] - results_df["predicted"]
         rmse = np.sqrt((results_df["error"] ** 2).mean())
         mae = np.mean(np.abs(results_df["error"]))
+        directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
         print("\nRolling nowcast evaluation results:")
         print(results_df)
         print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
+        print(f"Directional Accuracy: {directional_acc:.3f}")
     else:
         print("No forecasts were generated. Please check the data and selected variables.")
     return results_df
@@ -153,11 +155,13 @@ def run_rf_benchmark(data, selected, test_size=8, target_col='GDP_growth',
         results_df["error"] = results_df["actual"] - results_df["predicted"]
         rmse = np.sqrt((results_df["error"] ** 2).mean())
         mae = np.mean(np.abs(results_df["error"]))
+        directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
         print("\nRF benchmark evaluation results:")
         print(results_df)
         print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
+        print(f"Directional Accuracy: {directional_acc:.3f}")
     else:
         print("No RF forecasts were generated. Please check the data and selected variables.")
 

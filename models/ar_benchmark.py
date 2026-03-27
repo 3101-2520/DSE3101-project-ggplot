@@ -69,11 +69,13 @@ def run_ar_benchmark(data, test_size=8, target_col = "GDP_growth", max_lag = 8, 
         results_df['error'] = results_df['actual'] - results_df['predicted']
         rmse = np.sqrt((results_df['error'] ** 2).mean())
         mae = np.mean(np.abs(results_df['error']))
+        directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
         print("\nAR Benchmark Results:")
         print(results_df)
         print(f"RMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
+        print(f"Directional Accuracy (Success Ratio): {directional_acc:.3f}")
     else:
         print("No AR benchmark forecasts were generated.")
     return results_df
