@@ -126,14 +126,18 @@ def run_rolling_flash_nowcast(
         )
 
         # Fit AR models once per forecast quarter
-        quarter_end = forecast_quarter.end_time.normalize()
-        md_window_full = md_trans.loc[:quarter_end, selected].copy()
-        ar_models = fit_ar_models(md_window_full, selected, max_lag=max_lag)
-
         for flash in flashes:
             if verbose:
                 print(f"  Flash {flash}: using {flash} month(s) of data")
 
+            quarter_months = _get_quarter_months(forecast_quarter)
+            flash_cutoff = quarter_months[flash - 1]
+
+            # 1. Fit AR models only on data available up to this flash cutoff
+            md_observed = md_trans.loc[:flash_cutoff, selected].copy()
+            ar_models = fit_ar_models(md_observed, selected, max_lag=max_lag)
+
+            # 2. Build flash panel with future months in the forecast quarter hidden
             md_flash = _make_flash_monthly_panel(
                 md_trans=md_trans,
                 forecast_quarter=forecast_quarter,
@@ -141,13 +145,13 @@ def run_rolling_flash_nowcast(
                 selected=selected
             )
 
-            # Fill missing within-quarter months using AR models
+            # 3. Fill the hidden months using the AR models fitted above
             md_filled = fill_ragged_edge(md_flash, ar_models, selected)
 
-            # Aggregate to quarterly
+            # 4. Aggregate to quarterly
             monthly_q_filled = aggregate_to_quarterly(md_filled)
 
-            # Build forecast row
+            # 5. Build predictor row and predict
             x_forecast = _build_flash_predictor_row(
                 monthly_q_filled=monthly_q_filled,
                 data=data,
@@ -177,6 +181,7 @@ def run_rolling_flash_nowcast(
                 "predicted": y_pred,
                 "error": y_actual - y_pred
             })
+
 
     results_df = pd.DataFrame(results)
 
