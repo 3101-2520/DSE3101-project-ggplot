@@ -195,16 +195,20 @@ def run_rolling_flash_nowcast(
     print("\nOverall flash nowcast metrics:")
     overall_rmse = np.sqrt((results_df["error"] ** 2).mean())
     overall_mae = np.abs(results_df["error"]).mean()
+    overall_da = np.mean(np.sign(results_df["actual"]) == np.sign(results_df["predicted"]))
     print(f"RMSE: {overall_rmse:.4f}")
     print(f"MAE:  {overall_mae:.4f}")
+    print(f"Directional Accuracy (Success Ratio): {overall_da:.3f}")
 
+    # --- Per‑flash metrics ---
     print("\nMetrics by flash:")
     summary = (
-        results_df.groupby("flash")["error"]
-        .agg(
-            RMSE=lambda x: np.sqrt(np.mean(x ** 2)),
-            MAE=lambda x: np.mean(np.abs(x))
-        )
+        results_df.groupby("flash")
+        .apply(lambda g: pd.Series({
+            "RMSE": np.sqrt(np.mean(g["error"] ** 2)),
+            "MAE": np.mean(np.abs(g["error"])),
+            "DirAcc": np.mean(np.sign(g["actual"]) == np.sign(g["predicted"]))
+        }))
         .reset_index()
     )
     print(summary)
