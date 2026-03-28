@@ -4,9 +4,12 @@ from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly
 from src.feature_selection import select_features_rlasso, get_high_correlation_pairs
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.bridge_model import fit_bridge_model
-from models.evaluation import run_rolling_nowcast
+from models.evaluation import run_rolling_nowcast, run_rf_benchmark
 from models.ar_benchmark import run_ar_benchmark
 from models.adl_benchmark import run_adl_benchmark
+from models.flash_nowcast import run_rolling_flash_nowcast
+from sklearn.ensemble import RandomForestRegressor 
+from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 
 # ----------------------------------------------------------------------
 # Main execution
@@ -40,8 +43,14 @@ if __name__ == "__main__":
     # Step 3: Aggregate monthly indicators to quarterly
     monthly_q = aggregate_to_quarterly(MD_trans)
     
+    
     # Step 4: Merge with GDP growth
     data, X, y = merge_data(monthly_q, GDP_growth)
+
+    # Add COVID dummy
+    data['covid_dummy'] = 0
+    data.loc[(data.index >= pd.Period('2020Q1', freq='Q')) & 
+            (data.index <= pd.Period('2020Q2', freq='Q')), 'covid_dummy'] = 1
 
     # Step 5: Train/test split (keep last 8 quarters for testing)
     test_size = 8
@@ -52,7 +61,7 @@ if __name__ == "__main__":
     print(f"Testing sample: {test_data.index.min()} to {test_data.index.max()}, shape = {test_data.shape}")
 
     # Step 6: Feature selection with rlasso on training data
-    selected_summary = select_features_rlasso(train_data, target_col='GDP_growth')
+    selected_summary = select_features_rlasso(train_data, target_col='GDP_growth', exclude_cols = ['covid_dummy'])
     selected = list(selected_summary["feature"])
 
     # Step 7: Check for high correlation among selected features
@@ -117,9 +126,55 @@ if __name__ == "__main__":
             verbose=VERBOSE
         )
     """
+    # Step 13: Run flash nowcast evaluation
+    flash_results = run_rolling_flash_nowcast(
+        data=data,
+        md_trans=MD_trans,
+        selected=selected,
+        test_size=test_size,
+        window_size=80,
+        max_lag=12,
+        target_col='GDP_growth',
+        flashes=(1, 2, 3),
+        verbose=VERBOSE
+    )
 
     # Step 13: Run AR benchmark evaluation
     ar_benchmark_results = run_ar_benchmark(data, test_size=test_size, target_col='GDP_growth', max_lag=8)
 
     # Step 14: Run ADL benchmark evaluation
     adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
+
+    # Step 15: Run RF benchmark evaluation
+
+    X_train = train_data[selected]
+    y_train = train_data['GDP_growth']
+    
+    tscv = TimeSeriesSplit(n_splits=5)
+    param_grid = {
+        'n_estimators': [100, 200, 300],
+        'max_depth': [5, 10, 15, None],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4]
+    }
+    rf = RandomForestRegressor(random_state=42)
+    grid_search = GridSearchCV(
+        rf,
+        param_grid,
+        cv=tscv,
+        scoring='neg_mean_squared_error',
+        verbose=1,
+        n_jobs=-1
+    )
+    grid_search.fit(X_train, y_train)
+    best_rf_params = grid_search.best_params_
+    print("\nBest RF parameters found:")
+    print(best_rf_params)
+
+    rf_results = run_rf_benchmark(
+        data=data,
+        selected=selected,
+        test_size=test_size,
+        target_col="GDP_growth",
+        rf_params=best_rf_params
+    )

@@ -2,6 +2,7 @@ from config import *
 from src.data_preprocessing import aggregate_to_quarterly
 from models.bridge_model import fit_bridge_model
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
+from models.random_forest import fit_rf_model, predict_rf_model
 
 def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
                         max_lag=12, target_col='GDP_growth', verbose=VERBOSE):
@@ -58,9 +59,9 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
             continue
         x_forecast = monthly_q_filled.loc[[forecast_quarter], selected].copy()
             # Add lags and dummy from the original data (these are known at forecast time)
-            x_forecast['GDP_growth_lag1'] = data[target_col].shift(1).loc[forecast_quarter]
-            x_forecast['GDP_growth_lag2'] = data[target_col].shift(2).loc[forecast_quarter]
-            x_forecast['covid_dummy'] = data.loc[forecast_quarter, 'covid_dummy']
+        x_forecast['GDP_growth_lag1'] = data[target_col].shift(1).loc[forecast_quarter]
+        x_forecast['GDP_growth_lag2'] = data[target_col].shift(2).loc[forecast_quarter]
+        x_forecast['covid_dummy'] = data.loc[forecast_quarter, 'covid_dummy']
 
         x_forecast = x_forecast.replace([np.inf, -np.inf], np.nan)
 
@@ -87,11 +88,81 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
         results_df["error"] = results_df["actual"] - results_df["predicted"]
         rmse = np.sqrt((results_df["error"] ** 2).mean())
         mae = np.mean(np.abs(results_df["error"]))
+        directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
         print("\nRolling nowcast evaluation results:")
         print(results_df)
         print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
+        print(f"Directional Accuracy: {directional_acc:.3f}")
     else:
         print("No forecasts were generated. Please check the data and selected variables.")
+    return results_df
+
+
+def run_rf_benchmark(data, selected, test_size=8, target_col='GDP_growth',
+                     rf_params=None, verbose=VERBOSE):
+    """
+    Rolling/recursive evaluation for low-frequency Random Forest benchmark.
+    Uses quarterly data directly.
+    Keeps selected variables fixed and refits RF each step.
+    """
+    results = []
+    total_obs = len(data)
+    train_size = total_obs - test_size
+
+    for i in range(test_size):
+        train_end_index = train_size - 1 + i
+        forecast_index = train_size + i
+
+        train_data = data.iloc[i:train_end_index + 1].copy()
+        forecast_quarter = data.index[forecast_index]
+
+        if verbose:
+            print(f"\nRF rolling step {i+1}/{test_size}")
+            print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
+            print(f"Forecast quarter: {forecast_quarter}")
+
+        # Fit RF on current rolling training window
+        rf_model = fit_rf_model(
+            train_data=train_data,
+            feature_cols=selected,
+            target_col=target_col,
+            rf_params=rf_params
+        )
+
+        # Forecast row
+        x_forecast = data.loc[[forecast_quarter], selected].copy()
+        x_forecast = x_forecast.replace([np.inf, -np.inf], np.nan)
+
+        if x_forecast.empty or x_forecast.isnull().any().any():
+            print(f"Warning: Invalid predictor data for forecast quarter {forecast_quarter}. Skipping this step.")
+            continue
+
+        # Predict
+        y_pred = predict_rf_model(rf_model, x_forecast)
+        y_actual = data.loc[forecast_quarter, target_col]
+
+        results.append({
+            'quarter': forecast_quarter,
+            'actual': y_actual,
+            'predicted': y_pred
+        })
+
+    results_df = pd.DataFrame(results)
+
+    if not results_df.empty:
+        results_df["error"] = results_df["actual"] - results_df["predicted"]
+        rmse = np.sqrt((results_df["error"] ** 2).mean())
+        mae = np.mean(np.abs(results_df["error"]))
+        directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
+
+        print("\nRF benchmark evaluation results:")
+        print(results_df)
+        print(f"\nRMSE: {rmse:.4f}")
+        print(f"MAE: {mae:.4f}")
+        print(f"Directional Accuracy: {directional_acc:.3f}")
+    else:
+        print("No RF forecasts were generated. Please check the data and selected variables.")
+
     return results_df

@@ -82,6 +82,7 @@ def get_high_correlation_pairs(data, features, threshold=0.8):
     Return pairs of selected features with high absolute correlation.
     """
     X = data[features].dropna().copy()
+    X = X.loc[:, X.nunique() > 1]       #drop constant cols
     corr_matrix = X.corr().abs()
 
     pairs = []
