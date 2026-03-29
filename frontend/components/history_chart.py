@@ -7,17 +7,23 @@ from .atlanta_fed import get_historical_nowcasts
 from models.ar_benchmark import fit_ar_benchmark
 
 # --- 2. CACHE THE PREDICTIONS ---
-# We cache this so the math only runs once per session
 @st.cache_data
 def get_ar_predictions(gdp_series):
-    # Unpack the tuple: grab the model and ignore the best_p variable for the chart
     model, best_p = fit_ar_benchmark(gdp_series)
-    
-    # Return the historical predictions from the model object
     return model.fittedvalues
 
 def render(gdp_growth):
+    # This now contains "Real GDP (Actual)", "Atlanta Fed Forecast", etc.
     nowcasts_df = get_historical_nowcasts()
+
+    current_q_label = pd.Timestamp.now().to_period("Q").strftime("%Y Q%q")
+    
+    if not nowcasts_df.empty and "Real GDP (Actual)" in nowcasts_df.columns:
+        # Create a copy to avoid modifying cached data
+        nowcasts_df = nowcasts_df.copy()
+        # Set current quarter to NaN so it doesn't appear on the line chart
+        if current_q_label in nowcasts_df.index:
+            nowcasts_df.at[current_q_label, "Real GDP (Actual)"] = None
 
     st.markdown("### Chart Controls")
     col1, col2, col3 = st.columns(3)
@@ -30,7 +36,7 @@ def render(gdp_growth):
             "Select Year",
             min_value=min_year,
             max_value=max_year,
-            value=2024,
+            value=2025, 
             step=1
         )
 
@@ -62,8 +68,9 @@ def render(gdp_growth):
 
     full_labels = [str(p).replace("Q", " Q") for p in full_periods]
 
-    hist_zoom = (gdp_growth * 100).reindex(full_periods).to_frame(name="Growth")
-    hist_zoom["label"] = full_labels
+    # # Your local GDP data (e.g., Singapore GDP if that's what gdp_growth is)
+    # hist_zoom = (gdp_growth * 100).reindex(full_periods).to_frame(name="Growth")
+    # hist_zoom["label"] = full_labels
 
     if not nowcasts_df.empty:
         valid_nowcasts = nowcasts_df.reindex(full_labels)
@@ -72,37 +79,48 @@ def render(gdp_growth):
 
     fig = go.Figure()
 
-    fig.add_trace(go.Scatter(
-        x=hist_zoom["label"],
-        y=hist_zoom["Growth"],
-        mode="lines+markers",
-        name="Actual GDP",
-        line=dict(color="#5DADE2", width=4),
-        marker=dict(size=8),
-        connectgaps=False
-    ))
+    # # --- MAIN TRACE: LOCAL GDP ---
+    # fig.add_trace(go.Scatter(
+    #     x=hist_zoom["label"],
+    #     y=hist_zoom["Growth"],
+    #     mode="lines+markers",
+    #     name="SG Real GDP (Actual)",
+    #     line=dict(color="#5DADE2", width=4),
+    #     marker=dict(size=8),
+    #     connectgaps=False
+    # ))
 
     active_models = st.session_state.get("active_models", [])
 
+    # --- ADDED: REAL GDP (GDPC1) FROM FRED ---
+    if "Real GDP (Actual)" in valid_nowcasts.columns:
+        fig.add_trace(go.Scatter(
+            x=valid_nowcasts.index,
+            y=valid_nowcasts["Real GDP (Actual)"],
+            mode="lines+markers",
+            name="US Real GDP (FRED)",
+            line=dict(color="#F4D03F", width=3),
+            marker=dict(size=6, symbol="diamond"),
+            connectgaps=False # Ensure the line doesn't bridge the hidden gap
+        ))
+
+    # --- AR MODEL BENCHMARK ---
     if "AR Model" in active_models:
-        # 1. Get predictions and scale to percentages
         ar_preds = get_ar_predictions(gdp_growth)
         ar_scaled = ar_preds * 100
-        
-        # 2. Reindex using your new windowing logic!
         ar_zoom = ar_scaled.reindex(full_periods)
 
-        # 3. Draw the line
         fig.add_trace(go.Scatter(
-            x=full_labels,         # Using your new full_labels list
-            y=ar_zoom.values,      # Using the reindexed values
+            x=full_labels,
+            y=ar_zoom.values,
             mode="lines+markers",
             name="AR Model (Benchmark)",
-            line=dict(dash="dash", width=2, color="#E74C3C"), # Sharp red
+            line=dict(dash="dash", width=2, color="#E74C3C"),
             marker=dict(size=6),
             connectgaps=False
         ))
-    # ---------------------------------------------
+
+    # --- FED FORECASTS ---
     if "Atlanta Fed" in active_models and "Atlanta Fed Forecast" in valid_nowcasts.columns:
         fig.add_trace(go.Scatter(
             x=valid_nowcasts.index,
@@ -130,7 +148,7 @@ def render(gdp_growth):
         template="plotly_dark",
         hovermode="x unified",
         xaxis_title="Quarter",
-        yaxis_title="GDP Growth (%)",
+        yaxis_title="Annualized Growth (%)",
         legend=dict(
             orientation="h",
             yanchor="bottom",
