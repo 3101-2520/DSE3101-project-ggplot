@@ -94,7 +94,6 @@ def render(gdp_growth):
 
     # --- AR MODEL (Using Fast CSV Loader) ---
     if "AR Model" in active_models:
-<<<<<<< HEAD
         ar_preds = load_model_csv("historical_gdp_ar_predictions.csv")
         if not ar_preds.empty:
             ar_zoom = (ar_preds * 100).reindex(full_labels) # Scaled to %
@@ -107,11 +106,6 @@ def render(gdp_growth):
                 marker=dict(size=6),
                 connectgaps=False
             ))
-=======
-        ar_preds = get_ar_predictions(gdp_growth)
-        ar_scaled = ar_preds 
-        ar_zoom = ar_scaled.reindex(full_periods)
->>>>>>> shannon
 
 
     # --- ADL MODEL (Using Fast CSV Loader) ---
@@ -133,7 +127,7 @@ def render(gdp_growth):
     if "Bridge Model" in active_models:
         bridge_preds = load_model_csv("historical_gdp_bridge_predictions.csv")
         if not bridge_preds.empty:
-            bridge_zoom = (bridge_preds * 100).reindex(full_labels) # Scaled to %
+            bridge_zoom = bridge_preds.reindex(full_labels)
             fig.add_trace(go.Scatter(
                 x=full_labels,         
                 y=bridge_zoom.values,      
@@ -144,11 +138,10 @@ def render(gdp_growth):
                 connectgaps=False
             ))
 
-    # --- FED FORECASTS (With / 4 Scaling) ---
     if "Atlanta Fed" in active_models and "Atlanta Fed Forecast" in valid_nowcasts.columns:
         fig.add_trace(go.Scatter(
             x=valid_nowcasts.index,
-            y=valid_nowcasts["Atlanta Fed Forecast"] / 4, # Scaled down
+            y=valid_nowcasts["Atlanta Fed Forecast"],
             mode="lines+markers",
             name="Atlanta Fed (GDPNow)",
             line=dict(dash="dot", width=3, color="#E67E22"),
@@ -159,7 +152,7 @@ def render(gdp_growth):
     if "St. Louis Fed" in active_models and "St. Louis Fed Forecast" in valid_nowcasts.columns:
         fig.add_trace(go.Scatter(
             x=valid_nowcasts.index,
-            y=valid_nowcasts["St. Louis Fed Forecast"] / 4, # Scaled down
+            y=valid_nowcasts["St. Louis Fed Forecast"], 
             mode="lines+markers",
             name="St. Louis Fed Forecast",
             line=dict(dash="dot", width=3, color="#58D68D"),
@@ -188,4 +181,4 @@ def render(gdp_growth):
     fig.add_hline(y=0, line_dash="dash", line_color="white", opacity=0.3)
     fig.update_xaxes(categoryorder="array", categoryarray=full_labels)
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
