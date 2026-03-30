@@ -36,7 +36,7 @@ def fit_adl_benchmark(data, target_col = "GDP_growth", verbose = VERBOSE):
 
 def run_adl_benchmark(data, test_size=8, target_col = "GDP_growth", verbose = VERBOSE):
     """
-    Rolling-window ADL benchmark evaluation.
+    Expanding-window ADL benchmark evaluation.
     """
     results = []
     total_obs = len(data)
@@ -46,11 +46,10 @@ def run_adl_benchmark(data, test_size=8, target_col = "GDP_growth", verbose = VE
         train_end_index = train_size - 1 + i
         forecast_index = train_size + i
 
-        train_data = data.iloc[i:train_end_index + 1].copy()
+        train_data = data.iloc[:train_end_index + 1].copy()
         forecast_quarter = data.index[forecast_index]
 
         if verbose:
-             print(f"\nRolling step {i+1}/{test_size}")
              print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
              print(f"Forecast quarter: {forecast_quarter}")
 

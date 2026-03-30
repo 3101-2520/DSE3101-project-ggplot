@@ -67,22 +67,21 @@ def _build_flash_predictor_row(monthly_q_filled, data, forecast_quarter, selecte
     return x_forecast
 
 
-def run_rolling_flash_nowcast(
+def run_expanding_flash_nowcast(
     data,
     md_trans,
     selected,
-    test_size=8,
-    window_size=80,
+    test_size=62,
     max_lag=12,
     target_col="GDP_growth",
     flashes=(1, 2, 3),
     verbose=VERBOSE
 ):
     """
-    Rolling flash nowcast evaluation.
+    Expanding flash nowcast evaluation.
 
     For each forecast quarter in the last `test_size` quarters:
-      - fit the bridge equation on the rolling training window
+      - fit the bridge equation on the expanding training window
       - fit monthly AR models on monthly data available up to that quarter
       - generate flash nowcasts using 1, 2, or 3 months of information
         within the target quarter
@@ -92,19 +91,14 @@ def run_rolling_flash_nowcast(
     """
     results = []
     total_obs = len(data)
-    forecast_indices = list(range(total_obs - test_size, total_obs))
+    train_size = total_obs - test_size
 
-    for idx in forecast_indices:
-        start_idx = idx - window_size
-        if start_idx < 0:
-            print(
-                f"Warning: Not enough data to form a window of {window_size} "
-                f"quarters before {data.index[idx]}. Skipping."
-            )
-            continue
+    for i in range(test_size):
+        train_end_index = train_size - 1 + i
+        forecast_index = train_size + i
 
-        forecast_quarter = data.index[idx]
-        train_data = data.iloc[start_idx:idx].copy()
+        train_data = data.iloc[:train_end_index + 1].copy()
+        forecast_quarter = data.index[forecast_index]
 
         if verbose:
             print(f"\n{'=' * 60}")

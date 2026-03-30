@@ -4,10 +4,10 @@ from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly
 from src.feature_selection import select_features_rlasso, get_high_correlation_pairs
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.bridge_model import fit_bridge_model
-from models.evaluation import run_rolling_nowcast, run_rf_benchmark
+from models.evaluation import run_expanding_nowcast, run_rf_benchmark
 from models.ar_benchmark import run_ar_benchmark
 from models.adl_benchmark import run_adl_benchmark
-from models.flash_nowcast import run_rolling_flash_nowcast
+from models.flash_nowcast import run_expanding_flash_nowcast
 from sklearn.ensemble import RandomForestRegressor 
 from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 
@@ -52,8 +52,8 @@ if __name__ == "__main__":
     data.loc[(data.index >= pd.Period('2020Q1', freq='Q')) & 
             (data.index <= pd.Period('2020Q2', freq='Q')), 'covid_dummy'] = 1
 
-    # Step 5: Train/test split (keep last 100 quarters for testing)
-    test_size = 62
+    # Step 5: Train/test split (keep last 80 quarters for testing)
+    test_size = 80
     train_data = data.iloc[:-test_size].copy()
     test_data = data.iloc[-test_size:].copy()
 
@@ -95,44 +95,21 @@ if __name__ == "__main__":
     print("\nAll preprocessing and model fitting complete.")
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
 
-    # Step 12: Rolling window evaluation (optimal window size = 180)
-    test_size = 62
-    window_size = 180
-    rolling_results = run_rolling_nowcast(
+    # Step 12: Expanding window evaluation
+    expanding_results = run_expanding_nowcast(
         data, MD_trans, selected,
         test_size=test_size,
-        window_size=window_size,
         max_lag=12,
         target_col='GDP_growth',
         verbose=VERBOSE
     )
-
-    # Step 12: Rolling window evaluation with fixed window sizes (grid search)
-    """
-    test_size = 62                   
-    # List of window sizes to test (quarters)
-    window_sizes = [60, 80, 100, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 234]
-
-    for ws in window_sizes:
-        print(f"\n{'='*60}")
-        print(f"Testing window size = {ws} quarters")
-        print('='*60)
-        run_rolling_nowcast(
-            data, MD_trans, selected,
-            test_size=test_size,
-            window_size=ws,
-            max_lag=12,
-            target_col='GDP_growth',
-            verbose=VERBOSE
-        )
-    """
+    
     # Step 13: Run flash nowcast evaluation
-    flash_results = run_rolling_flash_nowcast(
+    flash_results = run_expanding_flash_nowcast(
         data=data,
         md_trans=MD_trans,
         selected=selected,
         test_size=test_size,
-        window_size=180,
         max_lag=12,
         target_col='GDP_growth',
         flashes=(1, 2, 3),
@@ -178,3 +155,29 @@ if __name__ == "__main__":
         target_col="GDP_growth",
         rf_params=best_rf_params
     )
+
+    # Step 16 Final results summary
+
+    def compute_metrics(results_df):
+        if results_df.empty:
+            return None
+        rmse = np.sqrt((results_df['error'] ** 2).mean())
+        mae = np.mean(np.abs(results_df['error']))
+        directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
+        return rmse, mae, directional_acc
+    
+    bridge_rmse, bride_mae, bridge_dir_acc = compute_metrics(expanding_results)
+    flash_rmse, flash_mae, flash_dir_acc = compute_metrics(flash_results)
+    ar_rmse, ar_mae, ar_dir_acc = compute_metrics(ar_benchmark_results)
+    adl_rmse, adl_mae, adl_dir_acc = compute_metrics(adl_benchmark_results)
+    rf_rmse, rf_mae, rf_dir_acc = compute_metrics(rf_results)
+
+    comparison_table = pd.DataFrame({
+        'Model': ['Bridge Nowcast', 'Flash Nowcast', 'AR Benchmark', 'ADL Benchmark', 'Random Forest'],
+        'RMSE': [bridge_rmse, flash_rmse, ar_rmse, adl_rmse, rf_rmse],
+        'MAE': [bride_mae, flash_mae, ar_mae, adl_mae, rf_mae],
+        'Directional Accuracy': [bridge_dir_acc, flash_dir_acc, ar_dir_acc, adl_dir_acc, rf_dir_acc]
+    })
+
+    print("\nFinal evaluation results summary:")
+    print(comparison_table)

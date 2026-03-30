@@ -37,7 +37,7 @@ def fit_ar_benchmark(series, max_lag = 8, verbose = VERBOSE):
 
 def run_ar_benchmark(data, test_size=8, target_col = "GDP_growth", max_lag = 8, verbose = VERBOSE):
     """
-    Rolling-window AR benchmark evaluation.
+    Expanding-window AR benchmark evaluation.
     """
     results = []
     total_obs = len(data)
@@ -47,10 +47,9 @@ def run_ar_benchmark(data, test_size=8, target_col = "GDP_growth", max_lag = 8, 
         train_end_index = train_size - 1 + i
         forecast_index = train_size + i
 
-        train_data = data.iloc[i:train_end_index + 1].copy()
+        train_data = data.iloc[:train_end_index + 1].copy()
         forecast_quarter = data.index[forecast_index]
         if verbose:
-             print(f"\nRolling step {i+1}/{test_size}")
              print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
              print(f"Forecast quarter: {forecast_quarter}")
 
