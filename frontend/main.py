@@ -128,9 +128,9 @@ bridge_history_df = prepare_bridge_history(data, selected)
 
 # --- 4. COMPONENT IMPORTS ---
 try:
-    from frontend.components import config_panel, live_metric, history_chart, subscription_ui
+    from frontend.components import config_panel, live_metric, biz_cycle, history_chart, subscription_ui
 except ModuleNotFoundError:
-    from components import config_panel, live_metric, history_chart, subscription_ui
+    from components import config_panel, live_metric, biz_cycle, history_chart, subscription_ui
 
 # --- 5. PAGE STYLING ---
 #st.set_page_config(layout="wide", page_title="GDP Nowcast Terminal")
@@ -165,11 +165,18 @@ with top_left:
     # Pass gdp_data so it knows which years are available
     config_panel.render()
 
-with top_right:
-    subscription_ui.render()
-    # Renders the small metric cards at the top
-    #live_metric.render()
-
 st.container()
 # Pass gdp_data to the main chart for the integrated view
 history_chart.render(gdp_data)
+
+with top_right:
+    # Renders the small metric cards at the top
+    col_left, col_right = st. columns([2, 1])
+    with col_left:
+        live_metric.render(bridge_history_df)
+    with col_right:
+        biz_cycle.render(bridge_history_df)
+    # Break
+    st.markdown("<br>", unsafe_allow_html=True)
+    # Renders the mailing list subscription
+    subscription_ui.render()
