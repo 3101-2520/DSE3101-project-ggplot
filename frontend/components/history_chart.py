@@ -107,6 +107,7 @@ def render(gdp_growth):
                 connectgaps=False
             ))
 
+
     # --- ADL MODEL (Using Fast CSV Loader) ---
     if "ADL Model" in active_models:
         adl_preds = load_model_csv("historical_gdp_adl_predictions.csv")
