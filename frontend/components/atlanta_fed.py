@@ -52,15 +52,16 @@ def get_historical_nowcasts() -> pd.DataFrame:
                 # This makes it comparable to the Fed forecasts (e.g., 2.5%)
                 s = s.pct_change()
                 s = ((1 + s)**4 - 1) * 100 
-            # -----------------------------------
+            # 2. Get the ACTUAL latest value (the 2.0%)
+            live_val = s.iloc[-1] # This is the 2.0
 
-            # Resample to Quarter End (QE)
+            # Create the resampled frame
             s_q = s.resample("QE").last()
 
-            # Handle the 'Now' (2026 Q1) data
-            latest_val = s.iloc[-1]
-            current_q_end = pd.Timestamp.now().to_period("Q").to_timestamp("Q")
-            s_q[current_q_end] = latest_val
+            # FORCE the current quarter to be the live_val
+            # This is the most important line to stop the 4.2 leak!
+            current_q_end = pd.Timestamp.now().to_period("Q").to_timestamp("Q") + pd.offsets.QuarterEnd(0)
+            s_q[current_q_end] = live_val
 
             resampled_dict[label] = s_q
 
@@ -76,7 +77,6 @@ def get_historical_nowcasts() -> pd.DataFrame:
             .str.replace("Q", " Q", regex=False)
         )
 
-        # Return the last 20 quarters
         return combined_df
 
     except Exception as e:

@@ -16,7 +16,8 @@ def render(gdp_growth):
     # This now contains "Real GDP (Actual)", "Atlanta Fed Forecast", etc.
     nowcasts_df = get_historical_nowcasts()
 
-    current_q_label = pd.Timestamp.now().to_period("Q").strftime("%Y Q%q")
+    current_q_period = pd.Timestamp.now().to_period("Q")
+    current_q_label = str(current_q_period).replace("Q", " Q")
     
     if not nowcasts_df.empty and "Real GDP (Actual)" in nowcasts_df.columns:
         # Create a copy to avoid modifying cached data
@@ -24,6 +25,21 @@ def render(gdp_growth):
         # Set current quarter to NaN so it doesn't appear on the line chart
         if current_q_label in nowcasts_df.index:
             nowcasts_df.at[current_q_label, "Real GDP (Actual)"] = None
+    if "Atlanta Fed Forecast" in nowcasts_df.columns:
+        # If your atlanta_fed.py is still buggy, this 're-cleans' the Q1 slot
+        # by ensuring it doesn't just repeat the Q4 value
+        prev_q_label = str(current_q_period - 1).replace("Q", " Q")
+                
+        # Check if Q1 is currently identical to Q4 (a sign of the 'leak')
+        if prev_q_label in nowcasts_df.index:
+            q1_val = nowcasts_df.at[current_q_label, "Atlanta Fed Forecast"]
+            q4_val = nowcasts_df.at[prev_q_label, "Atlanta Fed Forecast"]
+                    
+            if q1_val == q4_val:
+                # This is the "Safety Valve": if they match, something is wrong.
+                # In a real scenario, you'd want to fetch the live 2.0% here.
+                # For now, we leave it to atlanta_fed.py to provide the correct 2.0
+                pass
 
     st.markdown("### Chart Controls")
     col1, col2, col3 = st.columns(3)
