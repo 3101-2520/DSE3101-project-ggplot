@@ -27,12 +27,27 @@ from src.feature_selection import select_features_rlasso
 from export_ar_history import build_historical_ar_csv
 from export_adl_history import build_historical_adl_csv
 from export_bridge_history import build_historical_bridge_csv
+from frontend.components.atlanta_fed import get_historical_nowcasts
 
 
-@st.cache_data
-def get_historical_gdp_series():
-    qd_path = ROOT_DIR / "data" / "2026-02-QD.csv"
-    return load_and_transform_qd(str(qd_path), gdp_col="GDPC1")
+@st.cache_data(ttl=3600)
+def get_actual_gdp_from_fred():
+    nowcasts_df = get_historical_nowcasts()
+
+    if nowcasts_df.empty or "Real GDP (Actual)" not in nowcasts_df.columns:
+        return pd.DataFrame(columns=["Year and Quarter", "Actual GDP growth"])
+
+    actual_df = nowcasts_df[["Real GDP (Actual)"]].reset_index()
+
+    # whatever the reset_index column is called (often "date"), rename it
+    first_col = actual_df.columns[0]
+
+    actual_df = actual_df.rename(columns={
+        first_col: "Year and Quarter",
+        "Real GDP (Actual)": "Actual GDP growth"
+    })
+
+    return actual_df
 
 
 @st.cache_data
@@ -46,10 +61,10 @@ def get_modeling_data():
     vars_to_drop = ['ACOGNO', 'UMCSENTx', 'TWEXAFEGSMTHx', 'ANDENOx', 'VIXCLSx']
     MD_trans = MD_trans.drop(columns=vars_to_drop, errors='ignore')
 
-    # Step 2: quarterly GDP
+    # Step 2: fallback quarterly GDP from local file
     GDP_growth = load_and_transform_qd(str(qd_path), gdp_col='GDPC1')
 
-    # Step 3: same sample filter as execution.py
+    # Step 3: filter sample start
     start_period = pd.Period('1960Q1', freq='Q')
     start_date = start_period.start_time
 
@@ -60,7 +75,29 @@ def get_modeling_data():
     monthly_q = aggregate_to_quarterly(MD_trans)
     data, X, y = merge_data(monthly_q, GDP_growth)
 
-    # Step 5: add covid dummy
+    # Step 5: replace GDP_growth with FRED actual GDP from get_historical_nowcasts()
+    actual_gdp_df = get_actual_gdp_from_fred().copy()
+
+    if not actual_gdp_df.empty:
+        fred_gdp = actual_gdp_df.rename(columns={"Actual GDP growth": "GDP_growth"}).copy()
+
+        # convert "2025 Q4" -> PeriodIndex("2025Q4")
+        fred_gdp["Year and Quarter"] = (
+            fred_gdp["Year and Quarter"]
+            .str.replace(" ", "", regex=False)
+        )
+        fred_gdp["Year and Quarter"] = pd.PeriodIndex(fred_gdp["Year and Quarter"], freq="Q")
+
+        fred_gdp = fred_gdp.set_index("Year and Quarter")[["GDP_growth"]]
+
+        # overwrite GDP column using FRED values where available
+        data = data.drop(columns=["GDP_growth"], errors="ignore")
+        data = data.join(fred_gdp, how="left")
+
+        # optional: drop rows where GDP is still missing
+        data = data.dropna(subset=["GDP_growth"])
+
+    # Step 6: add covid dummy
     data['covid_dummy'] = 0
     data.loc[
         (data.index >= pd.Period('2020Q1', freq='Q')) &
@@ -68,7 +105,7 @@ def get_modeling_data():
         'covid_dummy'
     ] = 1
 
-    # Step 6: use same training split and feature selection
+    # Step 7: use same training split and feature selection
     test_size = 8
     train_data = data.iloc[:-test_size].copy()
 
@@ -81,8 +118,20 @@ def get_modeling_data():
 
     return data, MD_trans, selected
 
-
-gdp_data = get_historical_gdp_series()
+actual_gdp_df = get_actual_gdp_from_fred()
+gdp_data = (
+    actual_gdp_df.assign(
+        **{
+            "Year and Quarter": lambda df: pd.PeriodIndex(
+                df["Year and Quarter"].astype(str).str.replace(" ", "", regex=False),
+                freq="Q"
+            )
+        }
+    )
+    .set_index("Year and Quarter")["Actual GDP growth"]
+    .sort_index()
+    .dropna()
+)
 data, md_trans, selected = get_modeling_data()
 
 # -- AR Data --
@@ -173,9 +222,11 @@ with top_right:
     # Renders the small metric cards at the top
     col_left, col_right = st. columns([2, 1])
     with col_left:
-        live_metric.render(bridge_history_df)
+        #live_metric.render(bridge_history_df)
+        live_metric.render()
     with col_right:
-        biz_cycle.render(bridge_history_df)
+        #biz_cycle.render(bridge_history_df)
+        biz_cycle.render()
     # Break
     st.markdown("<br>", unsafe_allow_html=True)
     # Renders the mailing list subscription

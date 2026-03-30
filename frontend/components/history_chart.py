@@ -123,7 +123,7 @@ def render(gdp_growth):
     # --- AR MODEL BENCHMARK ---
     if "AR Model" in active_models:
         ar_preds = get_ar_predictions(gdp_growth)
-        ar_scaled = ar_preds * 100
+        ar_scaled = ar_preds 
         ar_zoom = ar_scaled.reindex(full_periods)
 
         fig.add_trace(go.Scatter(
