@@ -82,3 +82,9 @@ def get_historical_nowcasts() -> pd.DataFrame:
     except Exception as e:
         st.error(f"Error fetching Fed data: {e}")
         return pd.DataFrame()
+    
+
+def annualize_gdp_growth(gdp_growth_series):
+    annualized = 400 * gdp_growth_series.copy()
+    annualized.name = "Annualized_GDP_Growth"
+    return annualized
