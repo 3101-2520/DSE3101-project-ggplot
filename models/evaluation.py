@@ -4,7 +4,7 @@ from models.bridge_model import fit_bridge_model
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.random_forest import fit_rf_model, predict_rf_model
 
-def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
+def run_rolling_nowcast(data, md_trans, selected, test_size=100, window_size=80,
                         max_lag=12, target_col='GDP_growth', verbose=VERBOSE):
     """
     Rolling window nowcast evaluation with fixed window size.
@@ -90,8 +90,10 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
         mae = np.mean(np.abs(results_df["error"]))
         directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
-        print("\nRolling nowcast evaluation results:")
-        print(results_df)
+        print("\nRolling nowcast evaluation results: (first 5 rows)")
+        print(results_df.head(5))
+        print(f"\nRolling nowcast evaluation results: (last 5 rows)")
+        print(results_df.tail(5))
         print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
         print(f"Directional Accuracy: {directional_acc:.3f}")
@@ -157,8 +159,10 @@ def run_rf_benchmark(data, selected, test_size=8, target_col='GDP_growth',
         mae = np.mean(np.abs(results_df["error"]))
         directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
-        print("\nRF benchmark evaluation results:")
-        print(results_df)
+        print("\nRF benchmark evaluation results (first 5 rows):")
+        print(results_df.head(5))
+        print(f"\nRF benchmark evaluation results (last 5 rows):")
+        print(results_df.tail(5))
         print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
         print(f"Directional Accuracy: {directional_acc:.3f}")

@@ -52,8 +52,8 @@ if __name__ == "__main__":
     data.loc[(data.index >= pd.Period('2020Q1', freq='Q')) & 
             (data.index <= pd.Period('2020Q2', freq='Q')), 'covid_dummy'] = 1
 
-    # Step 5: Train/test split (keep last 8 quarters for testing)
-    test_size = 8
+    # Step 5: Train/test split (keep last 100 quarters for testing)
+    test_size = 62
     train_data = data.iloc[:-test_size].copy()
     test_data = data.iloc[-test_size:].copy()
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
 
     # Step 12: Rolling window evaluation (optimal window size = 180)
-    test_size = 8
+    test_size = 62
     window_size = 180
     rolling_results = run_rolling_nowcast(
         data, MD_trans, selected,
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     # Step 12: Rolling window evaluation with fixed window sizes (grid search)
     """
-    test_size = 8                     # last 8 quarters (2018Q3–2020Q2)
+    test_size = 62                   
     # List of window sizes to test (quarters)
     window_sizes = [60, 80, 100, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 234]
 
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         md_trans=MD_trans,
         selected=selected,
         test_size=test_size,
-        window_size=80,
+        window_size=180,
         max_lag=12,
         target_col='GDP_growth',
         flashes=(1, 2, 3),

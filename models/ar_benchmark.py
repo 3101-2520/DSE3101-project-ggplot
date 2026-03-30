@@ -18,7 +18,7 @@ from src.data_preprocessing import load_and_transform_qd
 # AR model functions
 # ----------------------------------------------------------------------
 
-def fit_ar_benchmark(series, max_lag = 8):
+def fit_ar_benchmark(series, max_lag = 8, verbose = VERBOSE):
     best_aic = np.inf
     best_model = None
     best_p = None
@@ -31,7 +31,8 @@ def fit_ar_benchmark(series, max_lag = 8):
                 best_p = p
         except:
             continue
-    print(f"Selected AR({best_p}) model with AIC: {best_aic:.2f}")
+    if verbose:
+        print(f"Selected AR({best_p}) model with AIC: {best_aic:.2f}")
     return best_model, best_p
 
 def run_ar_benchmark(data, test_size=8, target_col = "GDP_growth", max_lag = 8, verbose = VERBOSE):
@@ -71,9 +72,11 @@ def run_ar_benchmark(data, test_size=8, target_col = "GDP_growth", max_lag = 8, 
         mae = np.mean(np.abs(results_df['error']))
         directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
-        print("\nAR Benchmark Results:")
-        print(results_df)
-        print(f"RMSE: {rmse:.4f}")
+        print("\nAR Benchmark Results (first 5 rows):")
+        print(results_df.head(5))
+        print(f"\nAR Benchmark Results (last 5 rows):")
+        print(results_df.tail(5))
+        print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
         print(f"Directional Accuracy (Success Ratio): {directional_acc:.3f}")
     else:

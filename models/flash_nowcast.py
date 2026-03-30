@@ -189,8 +189,10 @@ def run_rolling_flash_nowcast(
         print("No flash nowcasts were generated.")
         return results_df
 
-    print("\nFlash nowcast results:")
-    print(results_df)
+    print("\nFlash nowcast results: (first 5 rows)")
+    print(results_df.head(5))
+    print(f"\nFlash nowcast results: (last 5 rows)")
+    print(results_df.tail(5))
 
     print("\nOverall flash nowcast metrics:")
     overall_rmse = np.sqrt((results_df["error"] ** 2).mean())
@@ -203,7 +205,7 @@ def run_rolling_flash_nowcast(
     # --- Per‑flash metrics ---
     print("\nMetrics by flash:")
     summary = (
-        results_df.groupby("flash")
+        results_df.groupby("flash", group_keys = False)
         .apply(lambda g: pd.Series({
             "RMSE": np.sqrt(np.mean(g["error"] ** 2)),
             "MAE": np.mean(np.abs(g["error"])),
