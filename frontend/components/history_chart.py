@@ -54,10 +54,12 @@ def render(gdp_growth):
     max_year = int(gdp_growth.index.max().year)
 
     with col1:
-        year = st.number_input("Select Year", min_value=min_year, max_value=max_year, value=2024, step=1)
+        # Added key="selected year"
+        year = st.number_input("Select Year", min_value=min_year, max_value=max_year, value=2024, step=1, key="selected year")
 
     with col2:
-        q = st.selectbox("Select Quarter", ["Q1", "Q2", "Q3", "Q4"])
+        # Added key="selected q"
+        q = st.selectbox("Select Quarter", ["Q1", "Q2", "Q3", "Q4"], key="selected q")
 
     with col3:
         window_size = st.number_input("Quarters to display", min_value=3, max_value=21, value=7, step=2)
@@ -96,7 +98,7 @@ def render(gdp_growth):
     if "AR Model" in active_models:
         ar_preds = load_model_csv("historical_gdp_ar_predictions.csv")
         if not ar_preds.empty:
-            ar_zoom = (ar_preds * 100).reindex(full_labels) # Scaled to %
+            ar_zoom = (ar_preds).reindex(full_labels) 
             fig.add_trace(go.Scatter(
                 x=full_labels,         
                 y=ar_zoom.values,      
@@ -112,7 +114,7 @@ def render(gdp_growth):
     if "ADL Model" in active_models:
         adl_preds = load_model_csv("historical_gdp_adl_predictions.csv")
         if not adl_preds.empty:
-            adl_zoom = (adl_preds * 100).reindex(full_labels) # Scaled to %
+            adl_zoom = (adl_preds).reindex(full_labels) 
             fig.add_trace(go.Scatter(
                 x=full_labels,         
                 y=adl_zoom.values,      
