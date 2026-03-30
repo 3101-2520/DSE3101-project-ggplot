@@ -28,8 +28,16 @@ from export_ar_history import build_historical_ar_csv
 from export_adl_history import build_historical_adl_csv
 from export_bridge_history import build_historical_bridge_csv
 from frontend.components.atlanta_fed import get_historical_nowcasts
+<<<<<<< HEAD
+=======
+from frontend.components.atlanta_fed import annualize_gdp_growth
+>>>>>>> shannon
 
+qd_path = ROOT_DIR / "data" / "2026-02-QD.csv"
+qd_trans = load_and_transform_qd(str(qd_path), gdp_col="GDPC1")
+gdp_data = annualize_gdp_growth(qd_trans)
 
+<<<<<<< HEAD
 @st.cache_data(ttl=3600)
 def get_actual_gdp_from_fred():
     nowcasts_df = get_historical_nowcasts()
@@ -52,29 +60,51 @@ def get_actual_gdp_from_fred():
 
 @st.cache_data
 def get_modeling_data():
+=======
+@st.cache_data
+def prepare_data():
+>>>>>>> shannon
     md_path = ROOT_DIR / "data" / "2026-02-MD.csv"
     qd_path = ROOT_DIR / "data" / "2026-02-QD.csv"
 
     # Step 1: monthly data
-    MD_trans = load_and_transform_md(str(md_path))
+    MD_trans = load_and_transform_md(md_path)
 
+    # same drops as execution.py
     vars_to_drop = ['ACOGNO', 'UMCSENTx', 'TWEXAFEGSMTHx', 'ANDENOx', 'VIXCLSx']
     MD_trans = MD_trans.drop(columns=vars_to_drop, errors='ignore')
 
+<<<<<<< HEAD
     # Step 2: fallback quarterly GDP from local file
     GDP_growth = load_and_transform_qd(str(qd_path), gdp_col='GDPC1')
 
     # Step 3: filter sample start
     start_period = pd.Period('1960Q1', freq='Q')
+=======
+    # Step 2: quarterly GDP
+    GDP_growth = load_and_transform_qd(qd_path, gdp_col="GDPC1")
+
+    # Step 3: annualize GDP
+    GDP_growth = annualize_gdp_growth(GDP_growth)
+    GDP_growth.name = "GDP_growth"
+
+    # same sample restriction as execution.py
+    start_period = pd.Period("1960Q1", freq="Q")
+    end_period = pd.Period("2020Q2", freq="Q")
+>>>>>>> shannon
     start_date = start_period.start_time
+    end_date = end_period.end_time
 
-    MD_trans = MD_trans.loc[start_date:]
-    GDP_growth = GDP_growth.loc[start_period:]
+    MD_trans = MD_trans.loc[start_date:end_date]
+    GDP_growth = GDP_growth.loc[start_period:end_period]
 
-    # Step 4: aggregate + merge
+    # Step 4: aggregate monthly predictors to quarterly
     monthly_q = aggregate_to_quarterly(MD_trans)
+
+    # Step 5: merge predictors with annualized GDP target
     data, X, y = merge_data(monthly_q, GDP_growth)
 
+<<<<<<< HEAD
     # Step 5: replace GDP_growth with FRED actual GDP from get_historical_nowcasts()
     actual_gdp_df = get_actual_gdp_from_fred().copy()
 
@@ -99,23 +129,27 @@ def get_modeling_data():
 
     # Step 6: add covid dummy
     data['covid_dummy'] = 0
+=======
+    # optional: keep same covid dummy as execution.py
+    data["covid_dummy"] = 0
+>>>>>>> shannon
     data.loc[
-        (data.index >= pd.Period('2020Q1', freq='Q')) &
-        (data.index <= pd.Period('2020Q2', freq='Q')),
-        'covid_dummy'
+        (data.index >= pd.Period("2020Q1", freq="Q")) &
+        (data.index <= pd.Period("2020Q2", freq="Q")),
+        "covid_dummy"
     ] = 1
 
+<<<<<<< HEAD
     # Step 7: use same training split and feature selection
     test_size = 8
     train_data = data.iloc[:-test_size].copy()
+=======
+    return data, X, y, MD_trans, GDP_growth
+>>>>>>> shannon
 
-    selected_summary = select_features_rlasso(
-        train_data,
-        target_col='GDP_growth',
-        exclude_cols=['covid_dummy']
-    )
-    selected = list(selected_summary["feature"])
+data = prepare_data()
 
+<<<<<<< HEAD
     return data, MD_trans, selected
 
 actual_gdp_df = get_actual_gdp_from_fred()
@@ -133,6 +167,8 @@ gdp_data = (
     .dropna()
 )
 data, md_trans, selected = get_modeling_data()
+=======
+>>>>>>> shannon
 
 # -- AR Data --
 @st.cache_data
@@ -161,18 +197,18 @@ def prepare_adl_history(data):
 adl_history_df = prepare_adl_history(data)
 
 # -- Bridge Data --
-@st.cache_data
-def prepare_bridge_history(data, selected):
-    output_path = ROOT_DIR / "data" / "historical_gdp_bridge_predictions.csv"
-    return build_historical_bridge_csv(
-        data=data,
-        selected=selected,
-        output_path=output_path,
-        target_col="GDP_growth",
-        min_train_size=20,
-    )
+# @st.cache_data
+# def prepare_bridge_history(data, selected):
+#     output_path = ROOT_DIR / "data" / "historical_gdp_bridge_predictions.csv"
+#     return build_historical_bridge_csv(
+#         data=data,
+#         selected=selected,
+#         output_path=output_path,
+#         target_col="GDP_growth",
+#         min_train_size=20,
+#     )
 
-bridge_history_df = prepare_bridge_history(data, selected)
+# bridge_history_df = prepare_bridge_history(data, selected)
 
 
 # --- 4. COMPONENT IMPORTS ---

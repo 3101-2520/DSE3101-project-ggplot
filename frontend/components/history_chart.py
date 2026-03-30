@@ -94,6 +94,7 @@ def render(gdp_growth):
 
     # --- AR MODEL (Using Fast CSV Loader) ---
     if "AR Model" in active_models:
+<<<<<<< HEAD
         ar_preds = load_model_csv("historical_gdp_ar_predictions.csv")
         if not ar_preds.empty:
             ar_zoom = (ar_preds * 100).reindex(full_labels) # Scaled to %
@@ -106,6 +107,11 @@ def render(gdp_growth):
                 marker=dict(size=6),
                 connectgaps=False
             ))
+=======
+        ar_preds = get_ar_predictions(gdp_growth)
+        ar_scaled = ar_preds 
+        ar_zoom = ar_scaled.reindex(full_periods)
+>>>>>>> shannon
 
 
     # --- ADL MODEL (Using Fast CSV Loader) ---

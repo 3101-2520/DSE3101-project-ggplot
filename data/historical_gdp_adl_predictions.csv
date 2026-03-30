@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Year and Quarter,Actual GDP growth,ADL benchmark predicted GDP growth
 <<<<<<< HEAD
 1965 Q1,0.02391092295812669,0.01768162620060059
@@ -488,3 +489,6 @@ Year and Quarter,Actual GDP growth,ADL benchmark predicted GDP growth
 2025 Q2,3.8380332333819878,4.0981316158564915
 2025 Q3,4.3753962528715995,1.3963449831870598
 >>>>>>> 593b808 (Fix live nowcast temporarily and change gdp data)
+=======
+
+>>>>>>> shannon
