@@ -157,9 +157,9 @@ history_chart.render(gdp_data)
 with top_right:
     col_left, col_right = st.columns([2, 1])
     with col_left:
-        live_metric.render() # <-- Empty
+        live_metric.render(bridge_history_df)
     with col_right:
-        biz_cycle.render(bridge_history_df) # <-- Has Data
+        biz_cycle.render(bridge_history_df)
     st.markdown("<br>", unsafe_allow_html=True)
     subscription_ui.render()
 
