@@ -61,6 +61,9 @@ def render(gdp_growth):
         # Added key="selected q"
         q = st.selectbox("Select Quarter", ["Q1", "Q2", "Q3", "Q4"], key="selected q")
 
+    st.session_state("selected year") = year
+    st.session_state("selected q") = q
+
     with col3:
         window_size = st.number_input("Quarters to display", min_value=3, max_value=21, value=7, step=2)
 
