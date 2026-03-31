@@ -4,28 +4,24 @@ from models.bridge_model import fit_bridge_model
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.random_forest import fit_rf_model, predict_rf_model
 
-def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
+def run_expanding_nowcast(data, md_trans, selected, test_size=100,
                         max_lag=12, target_col='GDP_growth', verbose=VERBOSE):
     """
-    Rolling window nowcast evaluation with fixed window size.
+    Expanding window nowcast evaluation with fixed window size.
     Adds two lags of GDP and a COVID dummy as additional predictors.
     For each forecast quarter (the last test_size quarters), trains on the most recent
     window_size quarters of data, refits bridge model and AR models, then nowcasts.
     """
     results = []
     total_obs = len(data)
-    # The indices of the last test_size quarters
-    forecast_indices = list(range(total_obs - test_size, total_obs))
+    train_size = total_obs - test_size
 
-    for idx in forecast_indices:
-        # Training window: window_size quarters before the forecast quarter
-        start_idx = idx - window_size
-        if start_idx < 0:
-            print(f"Warning: Not enough data to form a window of {window_size} quarters before {data.index[idx]}. Skipping.")
-            continue
+    for i in range(test_size):
+        train_end_index = train_size - 1 + i
+        forecast_index = train_size + i
 
-        train_data = data.iloc[start_idx:idx].copy()
-        forecast_quarter = data.index[idx]
+        train_data = data.iloc[:train_end_index + 1].copy()
+        forecast_quarter = data.index[forecast_index]
 
         if verbose:
             print(f"\nNowcasting {forecast_quarter}")
@@ -90,8 +86,10 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
         mae = np.mean(np.abs(results_df["error"]))
         directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
-        print("\nRolling nowcast evaluation results:")
-        print(results_df)
+        print("\nExpanding nowcast evaluation results: (first 5 rows)")
+        print(results_df.head(5))
+        print(f"\nExpanding nowcast evaluation results: (last 5 rows)")
+        print(results_df.tail(5))
         print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
         print(f"Directional Accuracy: {directional_acc:.3f}")
@@ -103,7 +101,7 @@ def run_rolling_nowcast(data, md_trans, selected, test_size=8, window_size=80,
 def run_rf_benchmark(data, selected, test_size=8, target_col='GDP_growth',
                      rf_params=None, verbose=VERBOSE):
     """
-    Rolling/recursive evaluation for low-frequency Random Forest benchmark.
+    Expanding evaluation for low-frequency Random Forest benchmark.
     Uses quarterly data directly.
     Keeps selected variables fixed and refits RF each step.
     """
@@ -115,15 +113,14 @@ def run_rf_benchmark(data, selected, test_size=8, target_col='GDP_growth',
         train_end_index = train_size - 1 + i
         forecast_index = train_size + i
 
-        train_data = data.iloc[i:train_end_index + 1].copy()
+        train_data = data.iloc[:train_end_index + 1].copy()
         forecast_quarter = data.index[forecast_index]
 
         if verbose:
-            print(f"\nRF rolling step {i+1}/{test_size}")
             print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
             print(f"Forecast quarter: {forecast_quarter}")
 
-        # Fit RF on current rolling training window
+        # Fit RF on current expanding training window
         rf_model = fit_rf_model(
             train_data=train_data,
             feature_cols=selected,
@@ -157,8 +154,10 @@ def run_rf_benchmark(data, selected, test_size=8, target_col='GDP_growth',
         mae = np.mean(np.abs(results_df["error"]))
         directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
 
-        print("\nRF benchmark evaluation results:")
-        print(results_df)
+        print("\nRF benchmark evaluation results (first 5 rows):")
+        print(results_df.head(5))
+        print(f"\nRF benchmark evaluation results (last 5 rows):")
+        print(results_df.tail(5))
         print(f"\nRMSE: {rmse:.4f}")
         print(f"MAE: {mae:.4f}")
         print(f"Directional Accuracy: {directional_acc:.3f}")

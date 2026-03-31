@@ -37,6 +37,9 @@ def render(gdp_growth):
     with col2:
         q = st.selectbox("Select Quarter", ["Q1", "Q2", "Q3", "Q4"])
 
+    st.session_state["selected year"] = year
+    st.session_state["selected q"] = q
+    
     with col3:
         window_size = st.number_input(
             "Quarters to display",
