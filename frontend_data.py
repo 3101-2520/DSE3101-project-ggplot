@@ -170,3 +170,67 @@ st.write(annualized_qd)
 #     )
 
 # bridge_history_df = prepare_bridge_history(data, selected)
+
+from src.data_preprocessing import (
+    load_and_transform_md,
+    load_and_transform_qd,
+    aggregate_to_quarterly,
+    merge_data,
+)
+from src.feature_selection import select_features_rlasso
+
+from export_ar_history import build_historical_ar_csv
+from export_adl_history import build_historical_adl_csv
+from export_bridge_history import build_historical_bridge_csv
+from frontend.components.atlanta_fed import get_historical_nowcasts
+from frontend.components.atlanta_fed import annualize_gdp_growth
+
+qd_path = ROOT_DIR / "data" / "2026-02-QD.csv"
+qd_trans = load_and_transform_qd(str(qd_path), gdp_col="GDPC1")
+gdp_data = annualize_gdp_growth(qd_trans)
+
+@st.cache_data
+def prepare_data():
+    md_path = ROOT_DIR / "data" / "2026-02-MD.csv"
+    qd_path = ROOT_DIR / "data" / "2026-02-QD.csv"
+
+    # Step 1: monthly data
+    MD_trans = load_and_transform_md(md_path)
+
+    # same drops as execution.py
+    vars_to_drop = ['ACOGNO', 'UMCSENTx', 'TWEXAFEGSMTHx', 'ANDENOx', 'VIXCLSx']
+    MD_trans = MD_trans.drop(columns=vars_to_drop, errors='ignore')
+
+    # Step 2: quarterly GDP
+    GDP_growth = load_and_transform_qd(qd_path, gdp_col="GDPC1")
+
+    # Step 3: annualize GDP
+    GDP_growth = annualize_gdp_growth(GDP_growth)
+    GDP_growth.name = "GDP_growth"
+
+    # same sample restriction as execution.py
+    start_period = pd.Period("1960Q1", freq="Q")
+    end_period = pd.Period("2020Q2", freq="Q")
+    start_date = start_period.start_time
+    end_date = end_period.end_time
+
+    MD_trans = MD_trans.loc[start_date:end_date]
+    GDP_growth = GDP_growth.loc[start_period:end_period]
+
+    # Step 4: aggregate monthly predictors to quarterly
+    monthly_q = aggregate_to_quarterly(MD_trans)
+
+    # Step 5: merge predictors with annualized GDP target
+    data, X, y = merge_data(monthly_q, GDP_growth)
+
+    # optional: keep same covid dummy as execution.py
+    data["covid_dummy"] = 0
+    data.loc[
+        (data.index >= pd.Period("2020Q1", freq="Q")) &
+        (data.index <= pd.Period("2020Q2", freq="Q")),
+        "covid_dummy"
+    ] = 1
+
+    return data, X, y, MD_trans, GDP_growth
+
+data = prepare_data()
