@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import date
 import pandas as pd
 
+
 def render(bridge_history_df):
   year = st.session_state["selected year"]
   q = st.session_state["selected q"]
