@@ -36,7 +36,7 @@ def build_historical_adl_csv(
 
         x_forecast = full_adl_data.loc[
             [forecast_quarter],
-            ["GDP_growth_lag1", "GDP_growth_lag2", "BAA - AAA", "UNRATE", "HOUST"]
+            ["GDP_growth_lag1", "GDP_growth_lag2", "BAA_AAA_lag2", "UNRATE_lag2", "HOUST_lag2"]
         ].copy()
 
         if x_forecast.isna().any().any():

@@ -23,7 +23,6 @@ from src.data_preprocessing import (
     merge_data,
 )
 from src.feature_selection import select_features_rlasso
-
 from export_ar_history import build_historical_ar_csv
 from export_adl_history import build_historical_adl_csv
 from export_bridge_history import build_historical_bridge_csv
@@ -55,7 +54,7 @@ def prepare_data():
 
     # same sample restriction as execution.py
     start_period = pd.Period("1960Q1", freq="Q")
-    end_period = pd.Period("2020Q2", freq="Q")
+    end_period = pd.Period(pd.Timestamp.now(), freq="Q")
     start_date = start_period.start_time
     end_date = end_period.end_time
 
@@ -78,8 +77,7 @@ def prepare_data():
 
     return data, X, y, MD_trans, GDP_growth
 
-data = prepare_data()
-
+data, X, y, MD_trans, GDP_growth = prepare_data()
 
 # -- AR Data --
 @st.cache_data
@@ -108,25 +106,25 @@ def prepare_adl_history(data):
 adl_history_df = prepare_adl_history(data)
 
 # -- Bridge Data --
-# @st.cache_data
-# def prepare_bridge_history(data, selected):
-#     output_path = ROOT_DIR / "data" / "historical_gdp_bridge_predictions.csv"
-#     return build_historical_bridge_csv(
-#         data=data,
-#         selected=selected,
-#         output_path=output_path,
-#         target_col="GDP_growth",
-#         min_train_size=20,
-#     )
-
-# bridge_history_df = prepare_bridge_history(data, selected)
+@st.cache_data
+def prepare_bridge_history(data, selected):
+    output_path = ROOT_DIR / "data" / "historical_gdp_bridge_predictions.csv"
+    return build_historical_bridge_csv(
+        data=data,
+        selected=selected,
+        output_path=output_path,
+        target_col="GDP_growth",
+        min_train_size=20,
+    )
+bridge_selected_variables = ["IPDMAT", "DPCERA3M086SBEA", "PAYEMS", "UEMP15T26", "PERMITNE", "UNRATE", "HWIURATIO"]
+bridge_history_df = prepare_bridge_history(data, bridge_selected_variables)
 
 
 # --- 4. COMPONENT IMPORTS ---
 try:
-    from frontend.components import config_panel, live_metric, biz_cycle, history_chart, subscription_ui, intra_quarter_chart
+    from frontend.components import config_panel, live_metric, biz_cycle, history_chart, intra_quarter_chart
 except ModuleNotFoundError:
-    from components import config_panel, live_metric, biz_cycle, history_chart, subscription_ui, intra_quarter_chart
+    from components import config_panel, live_metric, biz_cycle, history_chart, intra_quarter_chart
 
 # --- 5. PAGE STYLING ---
 #st.set_page_config(layout="wide", page_title="GDP Nowcast Terminal")
@@ -168,14 +166,12 @@ history_chart.render(gdp_data)
 with top_right:
     # Renders the small metric cards at the top
     col_left, col_right = st. columns([2, 1])
-    # with col_left:
-    #     live_metric.render(bridge_history_df)
-    # with col_right:
-    #     biz_cycle.render(bridge_history_df)
-    # Break
+    with col_left:
+        live_metric.render(bridge_history_df)
+    with col_right:
+        biz_cycle.render(bridge_history_df)
+
     st.markdown("<br>", unsafe_allow_html=True)
-    # Renders the mailing list subscription
-    #subscription_ui.render()
 
 st.divider()
 st.container()
