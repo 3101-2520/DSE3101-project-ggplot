@@ -95,14 +95,14 @@ if __name__ == "__main__":
     print("\nAll preprocessing and model fitting complete.")
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
 
-    # Step 12: Expanding window evaluation
-    expanding_results = run_expanding_nowcast(
-        data, MD_trans, selected,
-        test_size=test_size,
-        max_lag=12,
-        target_col='GDP_growth',
-        verbose=VERBOSE
-    )
+    # Step 12: Expanding window evaluation --> remove this 
+    # expanding_results = run_expanding_nowcast(
+    #     data, MD_trans, selected,
+    #     test_size=test_size,
+    #     max_lag=12,
+    #     target_col='GDP_growth',
+    #     verbose=VERBOSE
+    # )
     
     # Step 13: Run flash nowcast evaluation
     flash_results = run_expanding_flash_nowcast(
@@ -123,10 +123,27 @@ if __name__ == "__main__":
     adl_benchmark_results = run_adl_benchmark(data, test_size=test_size, target_col='GDP_growth')
 
     # Step 15: Run RF benchmark evaluation
+    # --- Build lagged RF training dataset to match run_rf_benchmark ---
+    rf_train_data = train_data.copy()
 
-    X_train = train_data[selected]
-    y_train = train_data['GDP_growth']
-    
+    # GDP lags
+    rf_train_data['GDP_growth_lag1'] = rf_train_data['GDP_growth'].shift(1)
+    rf_train_data['GDP_growth_lag2'] = rf_train_data['GDP_growth'].shift(2)
+
+    # Lag selected predictors by 1 quarter
+    lagged_selected = []
+    for col in selected:
+        lag_col = f"{col}_lag1"
+        rf_train_data[lag_col] = rf_train_data[col].shift(1)
+        lagged_selected.append(lag_col)
+
+    rf_feature_cols = lagged_selected + ['GDP_growth_lag1', 'GDP_growth_lag2']
+
+    rf_train_data = rf_train_data[rf_feature_cols + ['GDP_growth']].replace([np.inf, -np.inf], np.nan).dropna()
+
+    X_train = rf_train_data[rf_feature_cols]
+    y_train = rf_train_data['GDP_growth']
+
     tscv = TimeSeriesSplit(n_splits=5)
     param_grid = {
         'n_estimators': [100, 200, 300],
@@ -134,6 +151,7 @@ if __name__ == "__main__":
         'min_samples_split': [2, 5, 10],
         'min_samples_leaf': [1, 2, 4]
     }
+
     rf = RandomForestRegressor(random_state=42)
     grid_search = GridSearchCV(
         rf,
@@ -144,6 +162,7 @@ if __name__ == "__main__":
         n_jobs=-1
     )
     grid_search.fit(X_train, y_train)
+
     best_rf_params = grid_search.best_params_
     print("\nBest RF parameters found:")
     print(best_rf_params)
@@ -165,18 +184,36 @@ if __name__ == "__main__":
         mae = np.mean(np.abs(results_df['error']))
         directional_acc = np.mean(np.sign(results_df['actual']) == np.sign(results_df['predicted']))
         return rmse, mae, directional_acc
+
+    ### split by flash level and show flash breakdown separately
+    flash1_results = flash_results[flash_results['flash'] == 1]
+    flash2_results = flash_results[flash_results['flash'] == 2]
+    flash3_results = flash_results[flash_results['flash'] == 3]
     
-    bridge_rmse, bride_mae, bridge_dir_acc = compute_metrics(expanding_results)
-    flash_rmse, flash_mae, flash_dir_acc = compute_metrics(flash_results)
+    flash1_rmse, flash1_mae, flash1_dir_acc = compute_metrics(flash1_results)
+    flash2_rmse, flash2_mae, flash2_dir_acc = compute_metrics(flash2_results)
+    flash3_rmse, flash3_mae, flash3_dir_acc = compute_metrics(flash3_results)
+
+    flash_table = pd.DataFrame({
+        'Flash': ['Flash 1', 'Flash 2', 'Flash 3'],
+        'RMSE': [flash1_rmse, flash2_rmse, flash3_rmse],
+        'MAE': [flash1_mae, flash2_mae, flash3_mae],
+        'Directional Accuracy': [flash1_dir_acc, flash2_dir_acc, flash3_dir_acc]
+    })
+
+    print("\nFlash nowcast performance by information set:")
+    print(flash_table)
+
+
     ar_rmse, ar_mae, ar_dir_acc = compute_metrics(ar_benchmark_results)
     adl_rmse, adl_mae, adl_dir_acc = compute_metrics(adl_benchmark_results)
     rf_rmse, rf_mae, rf_dir_acc = compute_metrics(rf_results)
 
     comparison_table = pd.DataFrame({
-        'Model': ['Bridge Nowcast', 'Flash Nowcast', 'AR Benchmark', 'ADL Benchmark', 'Random Forest'],
-        'RMSE': [bridge_rmse, flash_rmse, ar_rmse, adl_rmse, rf_rmse],
-        'MAE': [bride_mae, flash_mae, ar_mae, adl_mae, rf_mae],
-        'Directional Accuracy': [bridge_dir_acc, flash_dir_acc, ar_dir_acc, adl_dir_acc, rf_dir_acc]
+        'Model': ['Flash 2 Nowcast', 'AR Benchmark', 'ADL Benchmark', 'Random Forest'],
+        'RMSE': [flash2_rmse, ar_rmse, adl_rmse, rf_rmse],
+        'MAE': [flash2_mae, ar_mae, adl_mae, rf_mae],
+        'Directional Accuracy': [flash2_dir_acc, ar_dir_acc, adl_dir_acc, rf_dir_acc]
     })
 
     print("\nFinal evaluation results summary:")

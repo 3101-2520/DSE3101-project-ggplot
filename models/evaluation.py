@@ -98,47 +98,75 @@ def run_expanding_nowcast(data, md_trans, selected, test_size=100,
     return results_df
 
 
+
+
 def run_rf_benchmark(data, selected, test_size=8, target_col='GDP_growth',
                      rf_params=None, verbose=VERBOSE):
     """
     Expanding evaluation for low-frequency Random Forest benchmark.
-    Uses quarterly data directly.
-    Keeps selected variables fixed and refits RF each step.
+
+    Quarterly benchmark only:
+    Predict GDP_t using lagged quarterly information only:
+      - selected predictors lagged by 1 quarter
+      - GDP_growth_lag1
+      - GDP_growth_lag2
+
+    This avoids using contemporaneous quarter-t predictors and makes the RF
+    benchmark more comparable to other forecasting benchmarks.
     """
     results = []
-    total_obs = len(data)
+
+    # --- Build lagged quarterly dataset once ---
+    rf_data = data.copy()
+
+    # GDP lags
+    rf_data['GDP_growth_lag1'] = rf_data[target_col].shift(1)
+    rf_data['GDP_growth_lag2'] = rf_data[target_col].shift(2)
+
+    # Lag selected predictors by 1 quarter
+    lagged_selected = []
+    for col in selected:
+        lag_col = f"{col}_lag1"
+        rf_data[lag_col] = rf_data[col].shift(1)
+        lagged_selected.append(lag_col)
+
+    feature_cols = lagged_selected + ['GDP_growth_lag1', 'GDP_growth_lag2']
+
+    # Keep only needed columns
+    rf_data = rf_data[feature_cols + [target_col]].replace([np.inf, -np.inf], np.nan).dropna()
+
+    total_obs = len(rf_data)
     train_size = total_obs - test_size
 
     for i in range(test_size):
         train_end_index = train_size - 1 + i
         forecast_index = train_size + i
 
-        train_data = data.iloc[:train_end_index + 1].copy()
-        forecast_quarter = data.index[forecast_index]
+        train_data = rf_data.iloc[:train_end_index + 1].copy()
+        forecast_quarter = rf_data.index[forecast_index]
 
         if verbose:
             print(f"Training window: {train_data.index.min()} to {train_data.index.max()}")
             print(f"Forecast quarter: {forecast_quarter}")
 
-        # Fit RF on current expanding training window
+        # Fit RF on expanding training window
         rf_model = fit_rf_model(
             train_data=train_data,
-            feature_cols=selected,
+            feature_cols=feature_cols,
             target_col=target_col,
             rf_params=rf_params
         )
 
-        # Forecast row
-        x_forecast = data.loc[[forecast_quarter], selected].copy()
+        # Forecast row uses lagged info only
+        x_forecast = rf_data.loc[[forecast_quarter], feature_cols].copy()
         x_forecast = x_forecast.replace([np.inf, -np.inf], np.nan)
 
         if x_forecast.empty or x_forecast.isnull().any().any():
             print(f"Warning: Invalid predictor data for forecast quarter {forecast_quarter}. Skipping this step.")
             continue
 
-        # Predict
         y_pred = predict_rf_model(rf_model, x_forecast)
-        y_actual = data.loc[forecast_quarter, target_col]
+        y_actual = rf_data.loc[forecast_quarter, target_col]
 
         results.append({
             'quarter': forecast_quarter,
