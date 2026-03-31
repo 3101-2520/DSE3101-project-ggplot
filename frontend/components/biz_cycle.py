@@ -4,8 +4,8 @@ import pandas as pd
 
 
 def render(bridge_history_df):
-  year = st.session_state["selected year"]
-  q = st.session_state["selected q"]
+  year = st.session_state["use selected year"]
+  q = st.session_state["use selected q"]
  
   selected_period = pd.Period(f"{year}{q}", freq="Q")
 
