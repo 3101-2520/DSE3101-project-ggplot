@@ -50,7 +50,7 @@ if __name__ == "__main__":
     # Add COVID dummy
     data['covid_dummy'] = 0
     data.loc[(data.index >= pd.Period('2020Q1', freq='Q')) & 
-            (data.index <= pd.Period('2020Q2', freq='Q')), 'covid_dummy'] = 1
+            (data.index <= pd.Period('2020Q4', freq='Q')), 'covid_dummy'] = 1
 
     # Step 5: Train/test split (keep last 80 quarters for testing)
     test_size = 80
