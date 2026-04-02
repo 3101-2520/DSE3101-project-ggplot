@@ -168,8 +168,12 @@ with tab3:
 
 
 with tab1:
+    # live nowcast monthly (bridge)
+    # live_monthly.render(bridge_history_df)
+
+    # column cards -- biz cycle n the model live metrics
     col1, col2 = st.columns([2, 1])
     with col1:
-        live_metric.render(bridge_history_df)
-    with col2:
         biz_cycle.render(bridge_history_df)
+    with col2:
+        live_metric.render(bridge_history_df)
