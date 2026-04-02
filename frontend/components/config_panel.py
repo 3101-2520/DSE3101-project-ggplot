@@ -7,9 +7,9 @@ def render():
     # Create the tickboxes 
     with st.container():
         ar_model = st.checkbox("AR Model (Benchmark)", value=True)
-        adl_model = st.checkbox("ADL Model", value=True)      # --- ADDED BACK ---
+        adl_model = st.checkbox("ADL Model", value=False)      # --- ADDED BACK ---
         bridge_model = st.checkbox("Bridge Model", value=True) # --- ADDED BACK ---
-        atl_fed = st.checkbox("Atlanta Fed (GDPNow)", value=True)
+        atl_fed = st.checkbox("Atlanta Fed (GDPNow)", value=False)
         stl_fed = st.checkbox("St. Louis Fed Forecast", value=False)
 
     # Compile the list

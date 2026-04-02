@@ -153,25 +153,23 @@ with col_status:
 st.divider()
 
 # --- 7. MAIN LAYOUT GRID ---
-top_left, top_right = st.columns([2, 1])
+tab1, tab2, tab3 = st.tabs(["Right Now", "Monthly Nowcast", "History Chart"])
 
-tab1, tab2 = st.tabs(["Monthly Nowcast", "History Chart"])
 
-with tab1:
-    st.markdown("### Monthly Nowcast")
-    st.markdown("<br>", unsafe_allow_html=True)
+with tab2:
     intra_quarter_chart.render()
 
-with tab2: 
-    st.markdown("### History Chart")
-    st.markdown("<br>", unsafe_allow_html=True)
-    config_panel.render()
-    st.markdown("<br>", unsafe_allow_html=True)
-    history_chart.render(gdp_data)
+with tab3: 
+    col1, col2 = st.columns([1, 7])
+    with col1:
+        config_panel.render()
+    with col2:
+        history_chart.render(gdp_data)
 
-with top_left:
-    # Pass gdp_data so it knows which years are available
-    live_metric.render(bridge_history_df)
 
-with top_right:
-    biz_cycle.render(bridge_history_df)
+with tab1:
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        live_metric.render(bridge_history_df)
+    with col2:
+        biz_cycle.render(bridge_history_df)
