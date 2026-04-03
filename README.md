@@ -6,14 +6,16 @@ Nowcasting the economy
 
 ## Methodology
 1. **Data preprocessing**
-2. **Feature selection**
+2. **Feature selection using LASSO**
 3. **Bridge regression**
-4. **Benchmark AR model**
-5. **Nowcasting**
+4. **Benchmark AR/ ADL/ RF models**
+5. **Model Evaluation**
+6. **Live Nowcasting**
 
 ## Dataset
 - **FRED-MD**: Monthly macroeconomic dataset from the Federal Reserve bank of St. Louis
 - **FRED-QD**: Quarterly macroeconomic dataset including real GDP
+- **FRED-API**: Used for live nowcasting with the latest available monthly indicators and quarterly GDP
 
 ## Project Structure
 
@@ -43,6 +45,44 @@ TODO
    pip install -r requirements.txt
    ```
 
+4. **FRED API Setup**
+   1. Create a FRED account and request an API key at https://fred.stlouisfed.org/docs/api/fred/v2/api_key.html
+   2. Set the API key as an enviroment variable
+      - On macOS/Linux:
+     ```bash
+     export FRED_API_KEY = "your_api_key_here"
+     ```
+   - On Windows:
+     ```bash
+     $env:FRED_API_KEY="your_api_key_here"
+     ```
+   3. Check that your API key has been set
+      - On macOS/Linux:
+     ```bash
+     echo $FRED_API_KEY
+     ```
+   - On Windows:
+     ```bash
+     echo $env:FRED_API_KEY
+     ```
+## Running files
+
+The project has 2 main workflows:
+
+1. **Backend Pipeline**
+   ```bash
+   python -m src.execution
+   ```
+
+2. **Live Nowcasting Pipeline**
+   1. Fetch latest FRED data
+      ```bash
+      python -m src.api_preprocessing
+      ```
+   2. Run live nowcast
+      ```bash
+      python -m src.live_nowcast
+      ```
 
 ## Contributed By
 
