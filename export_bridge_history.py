@@ -9,7 +9,6 @@ if str(ROOT) not in sys.path:
 
 from models.bridge_model import fit_bridge_model
 
-
 def build_historical_bridge_csv(
     data,
     selected,
@@ -22,20 +21,20 @@ def build_historical_bridge_csv(
 
     rows = []
 
-    full_data = data.copy()
-    full_data["GDP_growth_lag1"] = full_data[target_col].shift(1)
-    full_data["GDP_growth_lag2"] = full_data[target_col].shift(2)
+    hist_data = data.loc[data[target_col].notna()].copy()
+    hist_data["GDP_growth_lag1"] = hist_data[target_col].shift(1)
+    hist_data["GDP_growth_lag2"] = hist_data[target_col].shift(2)
 
     all_predictors = selected + ["GDP_growth_lag1", "GDP_growth_lag2"]
-    if "covid_dummy" in full_data.columns:
+    if "covid_dummy" in hist_data.columns:
         all_predictors.append("covid_dummy")
 
-    for i in range(min_train_size, len(full_data)):
-        forecast_quarter = full_data.index[i]
-        actual = full_data.loc[forecast_quarter, target_col]
+    for i in range(min_train_size, len(hist_data)):
+        forecast_quarter = hist_data.index[i]
+        actual = hist_data.loc[forecast_quarter, target_col]
 
         try:
-            train_data = full_data.iloc[:i].copy()
+            train_data = hist_data.iloc[:i].copy()
 
             bridge_model, bridge_coefs = fit_bridge_model(
                 train_data,
@@ -43,10 +42,12 @@ def build_historical_bridge_csv(
                 target_col=target_col
             )
 
-            x_forecast = full_data.loc[[forecast_quarter], all_predictors].copy()
+            x_forecast = hist_data.loc[[forecast_quarter], all_predictors].copy()
             x_forecast = x_forecast.replace([float("inf"), float("-inf")], pd.NA)
 
             if x_forecast.isna().any().any():
+                print(f"Skipping {forecast_quarter}: missing values in bridge forecast row")
+                print(x_forecast.T[x_forecast.isna().iloc[0]])
                 continue
 
             x_forecast = sm.add_constant(x_forecast, has_constant="add")
@@ -59,9 +60,14 @@ def build_historical_bridge_csv(
                 "Bridge predicted GDP growth": predicted,
             })
 
-        except Exception:
+        except Exception as e:
+            print(f"Failed Bridge at {forecast_quarter}: {e}")
             continue
 
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows, columns=[
+        "Year and Quarter",
+        "Actual GDP growth",
+        "Bridge predicted GDP growth",
+    ])
     df.to_csv(output_path, index=False)
     return df

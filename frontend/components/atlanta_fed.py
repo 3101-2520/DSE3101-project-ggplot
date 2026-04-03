@@ -84,7 +84,7 @@ def get_historical_nowcasts() -> pd.DataFrame:
         return pd.DataFrame()
     
 
-def annualize_gdp_growth(gdp_growth_series):
-    annualized = 400 * gdp_growth_series.copy()
-    annualized.name = "Annualized_GDP_Growth"
-    return annualized
+def annualize_gdp_growth(gdp_level):
+    gdp_growth = ((gdp_level / gdp_level.shift(1)) ** 4 - 1) * 100
+    gdp_growth.name = "GDP_growth"
+    return gdp_growth
