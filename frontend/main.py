@@ -10,7 +10,6 @@ import pandas as pd
 st.set_page_config(layout="wide", page_title="GDP Nowcast Terminal")
 
 # --- 2. PATH FIX ---
-# Ensure we can see 'src' and 'frontend' from the root
 ROOT_DIR = Path(__file__).resolve().parents[1] 
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
@@ -38,21 +37,14 @@ def prepare_data():
     md_path = ROOT_DIR / "data" / "2026-02-MD.csv"
     qd_path = ROOT_DIR / "data" / "2026-02-QD.csv"
 
-    # Step 1: monthly data
     MD_trans = load_and_transform_md(md_path)
-
-    # same drops as execution.py
     vars_to_drop = ['ACOGNO', 'UMCSENTx', 'TWEXAFEGSMTHx', 'ANDENOx', 'VIXCLSx']
     MD_trans = MD_trans.drop(columns=vars_to_drop, errors='ignore')
 
-    # Step 2: quarterly GDP
     GDP_growth = load_and_transform_qd(qd_path, gdp_col="GDPC1")
-
-    # Step 3: annualize GDP
     GDP_growth = annualize_gdp_growth(GDP_growth)
     GDP_growth.name = "GDP_growth"
 
-    # same sample restriction as execution.py
     start_period = pd.Period("1960Q1", freq="Q")
     end_period = pd.Period(pd.Timestamp.now(), freq="Q")
     start_date = start_period.start_time
@@ -61,13 +53,9 @@ def prepare_data():
     MD_trans = MD_trans.loc[start_date:end_date]
     GDP_growth = GDP_growth.loc[start_period:end_period]
 
-    # Step 4: aggregate monthly predictors to quarterly
     monthly_q = aggregate_to_quarterly(MD_trans)
-
-    # Step 5: merge predictors with annualized GDP target
     data, X, y = merge_data(monthly_q, GDP_growth)
 
-    # optional: keep same covid dummy as execution.py
     data["covid_dummy"] = 0
     data.loc[
         (data.index >= pd.Period("2020Q1", freq="Q")) &
@@ -122,21 +110,38 @@ bridge_history_df = prepare_bridge_history(data, bridge_selected_variables)
 
 # --- 4. COMPONENT IMPORTS ---
 try:
-    from frontend.components import config_panel, live_metric, biz_cycle, history_chart, intra_quarter_chart
+    from frontend.components import config_panel, live_metric, biz_cycle, history_chart, intra_quarter_chart, live_graph
 except ModuleNotFoundError:
-    from components import config_panel, live_metric, biz_cycle, history_chart, intra_quarter_chart
+    from components import config_panel, live_metric, biz_cycle, history_chart, intra_quarter_chart, live_graph
 
 # --- 5. PAGE STYLING ---
-#st.set_page_config(layout="wide", page_title="GDP Nowcast Terminal")
-
 st.markdown("""
     <style>
-    .main { background-color: #0e1117; color: white; } /* Dark theme for that terminal look */
+    .main { background-color: #0e1117; color: white; }
     [data-testid="stMetric"] {
         background-color: #1e2127;
         padding: 15px;
         border-radius: 8px;
         border: 1px solid #30363d;
+    }
+    
+    /* NEW: Make the Streamlit button look exactly like the metric cards */
+    div.stButton > button {
+        height: 114px; /* Matches the exact height of your custom HTML cards */
+        background-color: #1e2127;
+        border: 1px solid #30363d;
+        border-radius: 12px;
+        color: #A0AAB5;
+        font-size: 22px;
+        font-weight: bold;
+        transition: all 0.3s ease;
+    }
+    
+    /* Make it glow green when hovered! */
+    div.stButton > button:hover {
+        border-color: #00FF00;
+        color: #00FF00;
+        background-color: #1e2127;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -152,28 +157,42 @@ with col_status:
 
 st.divider()
 
-# --- 7. MAIN LAYOUT GRID ---
+# --- 7. MAIN LAYOUT TABS ---
 tab1, tab2, tab3 = st.tabs(["Right Now", "Monthly Nowcast", "History Chart"])
 
-
 with tab2:
-    intra_quarter_chart.render()
+    st.markdown("<br>", unsafe_allow_html=True)
+    # Pass the actual GDP data into the chart!
+    intra_quarter_chart.render(gdp_data)
 
 with tab3: 
+    st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns([1, 7])
     with col1:
         config_panel.render()
     with col2:
         history_chart.render(gdp_data)
 
-
 with tab1:
-    # live nowcast monthly (bridge)
-    # live_monthly.render(bridge_history_df)
-
-    # column cards -- biz cycle n the model live metrics
-    col1, col2 = st.columns([2, 1])
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- THE RULE OF THREE LAYOUT ---
+    col1, col2, col3 = st.columns(3) # 3 equal columns!
+    
     with col1:
-        biz_cycle.render(bridge_history_df)
+        biz_cycle.render(gdp_data)
+        
     with col2:
-        live_metric.render(bridge_history_df)
+        live_metric.render()
+        
+    with col3:
+        # The button is now a massive card itself, so no spacer is needed!
+        if st.button("🔄 Refresh", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+            
+    st.divider()
+
+    # The Live Graph
+    st.container()
+    live_graph.render()

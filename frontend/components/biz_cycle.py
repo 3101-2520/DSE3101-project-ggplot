@@ -1,71 +1,77 @@
 import streamlit as st
-from datetime import date
 import pandas as pd
+from pathlib import Path
 
+def render(gdp_data):
+    # 1. Fetch the Live Prediction directly from the CSV
+    try:
+        csv_path = Path(__file__).resolve().parents[2] / "data" / "live_nowcast_results.csv"
+        live_df = pd.read_csv(csv_path)
+        if live_df.empty:
+            raise ValueError("No live data")
+            
+        row = live_df.iloc[0]
+        quarter_str = str(row['quarter']).strip()
+        
+        mult = 100 if abs(row.get('ar_benchmark', 0)) < 0.5 else 1
+        
+        # Get the latest available flash
+        current = None
+        for flash in ['bridge_flash3', 'bridge_flash2', 'bridge_flash1']:
+            if pd.notna(row.get(flash)):
+                current = row[flash] * mult
+                break
+                
+        if current is None:
+            raise ValueError("No flash predictions available")
+            
+    except Exception:
+        current = None
+        quarter_str = None
 
-def render(bridge_history_df):
-  year = st.session_state["use selected year"]
-  q = st.session_state["use selected q"]
- 
-  selected_period = pd.Period(f"{year}{q}", freq="Q")
+    # 2. Execute the Logic using PROPER Macroeconomic Rules
+    label = "-"
+    text_color = "white"
 
-  # Get bridge
-  bridge_history_df["period"] = pd.PeriodIndex(
-    bridge_history_df["Year and Quarter"].str.replace(" ", ""),
-    freq="Q"
-  )
+    if current is not None and quarter_str is not None:
+        try:
+            live_period = pd.Period(quarter_str, freq="Q")
+            p1 = live_period - 1 # The previous quarter
 
-  row = bridge_history_df[
-    bridge_history_df["period"] == selected_period
-  ]
+            # Look up ACTUAL GDP growth from the historical series
+            if p1 in gdp_data.index:
+                v1 = gdp_data.loc[p1]
 
-  # Get previous 2 quarters
-  p1 = selected_period - 1
-  p2 = selected_period - 2
+                # Real-world business cycle logic
+                if current < 0 and v1 < 0:
+                    label = "Recession"
+                    text_color = "#FF3333" # Neon Red
+                elif current < 0:
+                    label = "Contracting"
+                    text_color = "#FF3333" # Neon Red
+                elif current >= 0 and current >= v1:
+                    label = "Expansion"
+                    text_color = "#00FF00" # Neon Green
+                elif current >= 0 and current < v1:
+                    label = "Decelerating Growth"
+                    text_color = "#F1C40F" # Yellow
+        except Exception:
+            pass 
 
-  # Extract rows
-  row1 = bridge_history_df[bridge_history_df["period"] == p1]
-  row2 = bridge_history_df[bridge_history_df["period"] == p2]
-
-  if not row1.empty and not row2.empty and not row.empty:
-    current = row["Bridge predicted GDP growth"].iloc[0]
-    v1 = row1["Bridge predicted GDP growth"].iloc[0]
-    v2 = row2["Bridge predicted GDP growth"].iloc[0]
-
-    #logic
-    if v2 < v1 < current:
-        label = "growth"
-        bg_color = "#A8E6A3"
-        text_color = "black"
-
-    elif v2 > v1 > current:
-        label = "recession"
-        bg_color = "#F5A3A3"
-        text_color = "black"
-
-    else:
-        label = "-"
-        bg_color = "#333333"
-        text_color = "white"
-
-  else:
-        label = "-"
-        bg_color = "#333333"
-        text_color = "white"
-
-  # Display metric
-  st.markdown(f"""
-  <div style="
-      background-color: {bg_color};
-      padding: 20px;
-      border-radius: 12px;
-      text-align: center;
-  ">
-      <div style="color: {text_color}; font-size: 16px;">
-          Business Cycle
-      </div>
-      <div style="color: {text_color}; font-size: 32px; font-weight: bold;">
-          {label}
-      </div>
-  </div>
-  """, unsafe_allow_html=True)
+    # 3. Display the metric card
+    st.markdown(f"""
+    <div style="
+        background-color: #1e2127;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid #30363d;
+    ">
+        <div style="color: #A0AAB5; font-size: 16px;">
+            Live Business Cycle ({quarter_str if quarter_str else 'N/A'})
+        </div>
+        <div style="color: {text_color}; font-size: 32px; font-weight: bold;">
+            {label}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
