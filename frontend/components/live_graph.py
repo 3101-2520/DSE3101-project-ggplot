@@ -2,13 +2,12 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
-from utils import apply_custom_font
 
-apply_custom_font()
-
+# --- 1. DATA LOADER ---
 @st.cache_data
 def load_live_nowcast():
     try:
+        # Resolves path to data/live_nowcast_results.csv
         csv_path = Path(__file__).resolve().parents[2] / "data" / "live_nowcast_results.csv"
         df = pd.read_csv(csv_path)
         if df.empty: return None
@@ -16,6 +15,7 @@ def load_live_nowcast():
     except Exception:
         return None
 
+# --- 2. MAIN RENDER ---
 def render():
     row = load_live_nowcast()
     
@@ -23,10 +23,10 @@ def render():
         st.info("Awaiting live nowcast results from backend...")
         return
 
-    quarter = row['quarter'] # e.g., "2026 Q1"
-    q_str = quarter[-2:]     # Extracts just "Q1", "Q2", etc.
+    quarter = row['quarter']
+    q_str = quarter[-2:]
     
-    # --- NEW: Dynamic Month Mapping ---
+    # Map quarters to months for the X-axis
     month_map = {
         "Q1": ["January", "February", "March"],
         "Q2": ["April", "May", "June"],
@@ -35,12 +35,13 @@ def render():
     }
     m_labels = month_map.get(q_str, ["1st Month", "2nd Month", "3rd Month"])
 
-    # Smart multiplier (auto-fixes un-annualized backend decimals)
+    # Scale check: ensures values are in percentage format
     multiplier = 100 if abs(row.get('ar_benchmark', 0)) < 0.5 else 1
 
     months = []
     preds = []
     
+    # Populate available predictions from the Bridge model flashes
     if pd.notna(row.get('bridge_flash1')):
         months.append(m_labels[0])
         preds.append(row['bridge_flash1'] * multiplier)
@@ -54,19 +55,23 @@ def render():
     fig = go.Figure()
 
     if preds:
-        # 1. The tracking line (Upgraded to Neon Cyan)
+        # 1. Evolution Track (Cyan line for historical trend in current quarter)
         fig.add_trace(go.Scatter(
             x=months,
             y=preds,
-            mode="lines+markers",
+            mode="lines+markers+text", 
             name="Evolution Track",
             line=dict(color="#00E5FF", width=3),
             marker=dict(size=10, color="#00E5FF"),
+            # Labels for historical months in the current quarter
+            text=[f"{v:.2f}%" if i < len(preds)-1 else "" for i, v in enumerate(preds)],
+            textposition="top center",
+            textfont=dict(size=12, color="#00E5FF"),
             hoverinfo="skip",
             showlegend=False
         ))
 
-        # 2. The massive highlight circle for the LATEST flash (Neon Green)
+        # 2. Latest Nowcast Highlight
         latest_month = months[-1]
         latest_pred = preds[-1]
         
@@ -75,43 +80,37 @@ def render():
             y=[latest_pred],
             mode="markers+text",
             name="Current Nowcast",
-            marker=dict(size=22, color="#00FF00", symbol="circle", line=dict(color="white", width=2)),
+            marker=dict(
+                size=16, 
+                color="#00E5FF", 
+                symbol="circle", 
+                line=dict(color="white", width=2)
+            ),
             text=[f"{latest_pred:.2f}%"],
             textposition="top center",
-            # --- OVERRODE ARIAL BLACK WITH TERMINAL FONT ---
             textfont=dict(
                 size=16, 
-                color="#00FF00", 
-                family="'IBM Plex Mono', monospace"
+                color="#00E5FF"
             ),
             showlegend=False
         ))
 
+    # Reference zero-line
     fig.add_hline(y=0, line_dash="dash", line_color="white", opacity=0.3)
 
+    # --- FIXED LAYOUT LOGIC ---
     fig.update_layout(
-        title=f"Live Bridge Nowcast Evolution ({quarter})",
+        title=dict(
+            text=f"Live Bridge Nowcast Evolution ({quarter})",
+            font=dict(size=16, color="white")
+        ),
         template="plotly_dark",
-        xaxis_title="Time of Prediction",
+        xaxis_title="Timeline of Prediction",
         yaxis_title="Predicted GDP Growth (%)",
-        
-        # --- EXPLICITLY SETTING IBM PLEX MONO ---
-        font=dict(
-            family="'IBM Plex Mono', monospace", 
-            size=12,
-            color="#E0E0E0"
-        ),
-        title_font=dict(
-            family="'IBM Plex Mono', monospace",
-            size=16,
-            color="white"
-        ),
-        # ----------------------------------------
-        
         xaxis=dict(
             categoryorder="array", 
-            categoryarray=m_labels # Uses the mapped months!
-        ),
+            categoryarray=m_labels
+        ), 
         margin=dict(l=0, r=0, t=50, b=0),
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
@@ -120,7 +119,7 @@ def render():
 
     if preds:
         min_val, max_val = min(preds), max(preds)
-        padding = max(0.5, abs(max_val - min_val) * 0.5)
+        padding = max(0.8, abs(max_val - min_val) * 0.8) 
         fig.update_yaxes(range=[min_val - padding, max_val + padding])
 
     st.plotly_chart(fig, use_container_width=True)

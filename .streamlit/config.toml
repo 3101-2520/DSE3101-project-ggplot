@@ -1,0 +1,15 @@
+[theme]
+# Force Dark Mode base
+base="dark"
+
+# Your "Greyish" primary background
+backgroundColor="#0e1117"
+
+# Sidebar and card background
+secondaryBackgroundColor="#1c2128"
+
+# Highlight color (Neon Green as per your previous code)
+primaryColor="#00ff00"
+
+# Text color
+textColor="#fafafa"

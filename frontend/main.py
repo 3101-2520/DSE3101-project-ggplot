@@ -1,16 +1,31 @@
 import streamlit as st
 from datetime import datetime
 import sys
+from streamlit_option_menu import option_menu
 from pathlib import Path
 import subprocess
 import pandas as pd
 import numpy as np
-from utils import apply_custom_font
-
-apply_custom_font()
+import base64
 
 # --- 1. PAGE CONFIGURATION ---
-st.set_page_config(layout="wide", page_title="GDP Nowcast Terminal")
+st.set_page_config(layout="wide", initial_sidebar_state="expanded")
+st.markdown(
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">', 
+    unsafe_allow_html=True
+)
+st.markdown(
+    """
+    <style>
+    /* Target the main container that holds everything */
+    .block-container {
+        padding-top: 1rem !important; /* Reduces the gap at the top */
+        padding-bottom: 0rem !important; /* Reduces the gap at the bottom */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- 2. PATH FIX ---
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -170,7 +185,6 @@ bridge_selected_variables = [
 
 bridge_history_df = prepare_bridge_history(data, bridge_selected_variables)
 
-
 # --- 8. COMPONENT IMPORTS ---
 try:
     from frontend.components import (
@@ -198,35 +212,26 @@ def success_popup():
 # --- 9. PAGE STYLING ---
 st.markdown("""
     <style>
-    .main {
+    /* 1. GLOBAL & MAIN AREA */
+    .stApp {
         background-color: #0e1117;
         color: white;
-        font-family: 'IBM Plex Mono', monospace; 
-    }
-
-    /* --- NEW: FORCE HEADERS TO USE THE FONT --- */
-    h1, h2, h3, h4, h5, h6, span {
-        font-family: 'IBM Plex Mono', monospace !important;
-    }
-
-    /* --- NEW: FORCE TABS TO USE THE FONT --- */
-    button[data-baseweb="tab"] {
-        font-family: 'IBM Plex Mono', monospace !important;
     }
     
-    button[data-baseweb="tab"] > div[data-testid="stMarkdownContainer"] > p {
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: 18px; /* Optional: Make tab text a bit larger */
+    /* Hides the collapse button inside the sidebar */
+    [data-testid="stSidebarCollapseButton"] {
+        display: none !important;
     }
 
+    /* 3. METRICS & CARDS */
     [data-testid="stMetric"] {
         background-color: #1e2127;
         padding: 15px;
         border-radius: 8px;
         border: 1px solid #30363d;
-        font-family: 'IBM Plex Mono', monospace; 
     }
 
+    /* 4. LARGE REFRESH BUTTON */
     div.stButton > button {
         height: 114px;
         background-color: #1e2127;
@@ -235,7 +240,6 @@ st.markdown("""
         color: #A0AAB5;
         font-size: 22px;
         font-weight: bold;
-        font-family: 'IBM Plex Mono', monospace; 
         transition: all 0.3s ease;
     }
 
@@ -244,85 +248,148 @@ st.markdown("""
         color: #00FF00;
         background-color: #1e2127;
     }
+
+    /* 5. DISABLE LIGHT MODE TOGGLE */
+    div[role="dialog"] [data-testid="stWidgetLabel"] + div[role="radiogroup"] {
+        display: none !important;
+    }
+    
+    /* 6. MISC CLEANUP */
+    hr {
+        border-top: 1px solid #30363d !important;
+    }
+    footer {
+        visibility: hidden;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-
 # --- 10. HEADER ---
-col_title, col_status = st.columns([3, 1])
+def get_image_base64(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
+current_dir = Path(__file__).parent
+image_path = current_dir / "assets" / "Team_logo.png"
+img_base64 = get_image_base64(image_path) if image_path.exists() else ""
+col_title, col_status = st.columns([4, 1])
 
 with col_title:
-    st.title("GDP Nowcast Terminal")
+    # 1. Title with Bootstrap Icon (No st.title padding issues)
     st.markdown(
-        # --- ADDED FONT DIRECTLY TO THE LIVE FEED SPAN TAG ---
-        "DSE3101 | <span style='background-color:#00ff00; padding:2px 8px; border-radius:10px; color: black; font-weight: bold; font-family: \"IBM Plex Mono\", monospace;'>⚡ LIVE FEED</span>",
+        '<h1 style="margin-bottom: 0;"><i class="bi bi-activity" style="color: #5DADE2; margin-right: 12px;"></i>GDP Nowcast Terminal</h1>', 
+        unsafe_allow_html=True
+    )
+    
+    # 2. A slightly softer, modern-looking LIVE badge
+    st.markdown(
+        f"<div style='color: #a1a1aa; font-size: 15px; margin-top: 5px;'>"
+        f"DSE3101 &nbsp;|&nbsp; "
+        f"<i class='bi bi-arrow-repeat' style='margin-right: 5px;'></i>"
+        f"<b>Last Sync:</b> {datetime.now().strftime('%H:%M:%S')}"
+        f"</div>", 
         unsafe_allow_html=True
     )
 
 with col_status:
-    st.write(f"**Last Sync:** {datetime.now().strftime('%H:%M:%S')}")
+    if img_base64:
+        st.markdown(
+            f"""
+            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 15px;">
+                <img src="data:image/png;base64,{img_base64}" width="100">
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
 st.divider()
 
-# Check if the pop-up trigger was set
-if st.session_state.get("show_popup", False):
-    # Reset the trigger immediately so it doesn't get stuck in an infinite loop
-    st.session_state["show_popup"] = False 
+# --- 11. SIDEBAR ---
+with st.sidebar:
+    page = option_menu(
+        menu_title=None,  # Hides the title to keep it clean like the image
+        options=["Live Statistics", "Monthly Nowcast", "History Chart"],
+        icons=["graph-up-arrow", "calendar4", "bar-chart-line"], 
+        default_index=0,
+        styles={
+            "container": {"padding": "0!important", "background-color": "transparent"},
+            "icon": {"font-size": "16px"}, 
+            "nav-link": {
+                "font-size": "16px", 
+                "text-align": "left", 
+                "margin": "4px 0", 
+                "border-radius": "8px", # Gives that pill-shaped highlight
+                "--hover-color": "rgba(255, 255, 255, 0.05)"
+            },
+            "nav-link-selected": {
+                "background-color": "#4b5563", # Matches the dark grey highlight in your image
+                "font-weight": "bold"
+            },
+        }
+    )
+    
+    st.divider()
+    st.markdown(
+    '<h3><i class="bi bi-gear" style="margin-right: 8px; color: #a1a1aa;"></i>Configuration</h3>', 
+    unsafe_allow_html=True
+)
+    
+    # Initialize variables to None BEFORE checking the page
+    hist_params = None
+    selected_quarter = None
+    
+    # Conditional Sidebar Logic
+    if page == "History Chart":
+        hist_params = history_chart.get_sidebar_controls(gdp_data)
+        config_panel.render() 
+        
+    elif page == "Live Statistics":
+        st.info("No specific filters for live view.")
+    
+    elif page == "Monthly Nowcast":
+        selected_quarter = intra_quarter_chart.get_sidebar_filters()
+
+# --- TRIGGER DIALOG BEFORE CONTENT ---
+if st.session_state.get("success_popup", False):
+    st.session_state["success_popup"] = False  # Reset immediately
     success_popup()
 
-# --- 11. TABS ---
-tab1, tab2, tab3 = st.tabs(["Right Now", "Monthly Nowcast", "History Chart"])
+# --- 12. MAIN CONTENT AREA ---
+if page == "Live Statistics":
+    with st.container():
+        st.markdown("<br>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            biz_cycle.render(gdp_data)
+        with col2:
+            live_metric.render()
+        with col3:
+            if st.button("Refresh data (Takes ~2 mins)", use_container_width=True, key="refresh_btn"):
+                st.toast("Starting data pipeline...", icon="🚀")
+                with st.spinner("Accessing FRED API & Re-running Models..."):
+                    try:
+                        api_script = ROOT_DIR / "src" / "api_preprocessing.py"
+                        model_script = ROOT_DIR / "src" / "live_nowcast.py"
+                        
+                        subprocess.run([sys.executable, str(api_script)], check=True)
+                        subprocess.run([sys.executable, str(model_script)], check=True)
+                        
+                        st.session_state["success_popup"] = True
+                        st.cache_data.clear()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
-with tab1:
+        st.divider()
+        live_graph.render()
+
+elif page == "Monthly Nowcast":
     st.markdown("<br>", unsafe_allow_html=True)
+    intra_quarter_chart.render(gdp_data, selected_quarter)
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        biz_cycle.render(gdp_data)
-
-    with col2:
-        live_metric.render()
-
-    with col3:
-        if st.button("Refresh data (Its gonna take like 2mins bro)", use_container_width=True):
-            # Show a loading spinner so the user knows it's thinking
-            with st.spinner("Downloading FRED Data & Running Nowcast..."):
-                try:
-                    # 1. Run the FRED Data downloader
-                    fred_script = ROOT_DIR / "src"/ "api_preprocessing.py"
-                    subprocess.run([sys.executable, str(fred_script)], check=True)
-                    
-                    # 2. Run the Nowcast Model to generate new predictions
-                    model_script = ROOT_DIR / "src"/ "live_nowcast.py"
-                    subprocess.run([sys.executable, str(model_script)], check=True)
-                    st.session_state["show_popup"] = True         
-                              
-                    # 3. Clear old memory and reload the page with the new CSVs!
-                    st.cache_data.clear()
-                    st.rerun()
-                    
-                except subprocess.CalledProcessError as e:
-                    st.error(f"Pipeline failed! Check terminal for details. Error code: {e.returncode}")
-                except Exception as e:
-                    st.error(f"An unexpected error occurred: {e}")
-
-    st.divider()
-    st.container()
-    live_graph.render()
-
-
-with tab2:
+elif page == "History Chart":
     st.markdown("<br>", unsafe_allow_html=True)
-    intra_quarter_chart.render(gdp_data)
-
-
-with tab3:
-    st.markdown("<br>", unsafe_allow_html=True)
-    col1, col2 = st.columns([1, 7])
-
-    with col1:
-        config_panel.render()
-
-    with col2:
-        history_chart.render(gdp_data)
+    
+    if hist_params:
+        history_chart.render(gdp_data, *hist_params)
+    else:
+        st.error("Sidebar controls failed to load.")
