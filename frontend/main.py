@@ -194,6 +194,8 @@ try:
         history_chart,
         intra_quarter_chart,
         live_graph,
+        fred_industry_models,
+        fred_nowcast
     )
 except ModuleNotFoundError:
     from components import (
@@ -203,6 +205,8 @@ except ModuleNotFoundError:
         history_chart,
         intra_quarter_chart,
         live_graph,
+        fred_industry_models,
+        fred_nowcast
     )
 @st.dialog("Dashboard Update")
 def success_popup():
@@ -212,7 +216,41 @@ def success_popup():
 # --- 9. PAGE STYLING ---
 st.markdown("""
     <style>
-    /* 1. GLOBAL & MAIN AREA */
+    @keyframes pulse-glow {
+    0% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
+    50% { opacity: 0.6; text-shadow: 0 0 20px #00ff00; }
+    100% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
+    }
+
+    .flash-text {
+    animation: pulse-glow 2s infinite;
+    color: #00ff00;
+    font-weight: bold;
+    font-size: 2rem;
+    text-align: center;
+    margin: 0;
+        }
+
+    .custom-card {
+    background-color: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 20px;
+    height: 150px; /* Ensures all cards are same height */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    }
+
+    .card-label {
+    color: #a1a1aa;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    text-align: center;
+    }
+    /* GLOBAL & MAIN AREA */
     .stApp {
         background-color: #0e1117;
         color: white;
@@ -223,7 +261,7 @@ st.markdown("""
         display: none !important;
     }
 
-    /* 3. METRICS & CARDS */
+    /* METRICS & CARDS */
     [data-testid="stMetric"] {
         background-color: #1e2127;
         padding: 15px;
@@ -231,9 +269,9 @@ st.markdown("""
         border: 1px solid #30363d;
     }
 
-    /* 4. LARGE REFRESH BUTTON */
+    /* LARGE REFRESH BUTTON */
     div.stButton > button {
-        height: 114px;
+        height: 100px;
         background-color: #1e2127;
         border: 1px solid #30363d;
         border-radius: 12px;
@@ -249,17 +287,23 @@ st.markdown("""
         background-color: #1e2127;
     }
 
-    /* 5. DISABLE LIGHT MODE TOGGLE */
+    /* DISABLE LIGHT MODE TOGGLE */
     div[role="dialog"] [data-testid="stWidgetLabel"] + div[role="radiogroup"] {
         display: none !important;
     }
     
-    /* 6. MISC CLEANUP */
+    /* MISC CLEANUP */
     hr {
         border-top: 1px solid #30363d !important;
     }
     footer {
         visibility: hidden;
+    }
+    
+    /* Remove the default gap between the divider and columns */
+    hr {
+        margin-top: 0rem !important;
+        margin-bottom: 1rem !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -354,15 +398,27 @@ if st.session_state.get("success_popup", False):
     success_popup()
 
 # --- 12. MAIN CONTENT AREA ---
+from frontend.components.fred_nowcast import get_fred_data, render_fred_card
+from frontend.components.live_metric import get_live_value
 if page == "Live Statistics":
     with st.container():
-        st.markdown("<br>", unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
+        # Target quarters
+        quarter, bridge_val = get_live_value()
+        st.write(f"Searching for: '{quarter}'") 
+        # 2. Fetch the Fed numbers based on that quarter
+        atl_val, stl_val = get_fred_data(quarter)
+        # 3. Create the 5-column grid
+        col1, col2, col3, col4, col5 = st.columns([1.2, 1, 1, 1, 1.2])
         with col1:
             biz_cycle.render(gdp_data)
         with col2:
-            live_metric.render()
+            live_metric.render() 
         with col3:
+            render_fred_card("Atlanta GDPNow", atl_val, quarter)
+
+        with col4:
+            render_fred_card("St. Louis Fed", stl_val, quarter)
+        with col5:
             if st.button("Refresh data (Takes ~2 mins)", use_container_width=True, key="refresh_btn"):
                 st.toast("Starting data pipeline...", icon="🚀")
                 with st.spinner("Accessing FRED API & Re-running Models..."):
@@ -378,8 +434,6 @@ if page == "Live Statistics":
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error: {e}")
-
-        st.divider()
         live_graph.render()
 
 elif page == "Monthly Nowcast":

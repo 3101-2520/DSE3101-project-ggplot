@@ -32,7 +32,8 @@ def render(gdp_data):
 
     # 2. Execute the Logic using PROPER Macroeconomic Rules
     label = "-"
-    text_color = "white"
+    text_color = "#FFFFFF"
+    flash_class = "" # Default: no flashing
 
     if current is not None and quarter_str is not None:
         try:
@@ -47,19 +48,44 @@ def render(gdp_data):
                 if current < 0 and v1 < 0:
                     label = "Recession"
                     text_color = "#FF3333" # Neon Red
+                    flash_class = "flash-red"
                 elif current < 0:
                     label = "Contracting"
                     text_color = "#FF3333" # Neon Red
+                    flash_class = "flash-red"
                 elif current >= 0 and current >= v1:
                     label = "Expansion"
                     text_color = "#00FF00" # Neon Green
+                    flash_class = "flash-green"
                 elif current >= 0 and current < v1:
                     label = "Decelerating Growth"
                     text_color = "#F1C40F" # Yellow
+                    flash_class = "flash-yellow"
         except Exception:
             pass 
 
-    # 3. Display the metric card
+    st.markdown("""
+    <style>
+    @keyframes pulse-green {
+        0% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
+        50% { opacity: 0.5; text-shadow: 0 0 20px #00FF00; }
+        100% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
+    }
+    @keyframes pulse-red {
+        0% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
+        50% { opacity: 0.5; text-shadow: 0 0 20px #FF3333; }
+        100% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
+    }
+    .flash-green {
+        animation: pulse-green 2s infinite;
+    }
+    .flash-red {
+        animation: pulse-red 2s infinite;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # 4. Display the card
     st.markdown(f"""
     <div style="
         background-color: #1e2127;
@@ -67,11 +93,15 @@ def render(gdp_data):
         border-radius: 12px;
         text-align: center;
         border: 1px solid #30363d;
+        height: 100px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     ">
-        <div style="color: #A0AAB5; font-size: 16px;">
+        <div style="color: #A0AAB5; font-size: 14px; text-transform: uppercase; margin-bottom: 8px;">
             Live Business Cycle ({quarter_str if quarter_str else 'N/A'})
         </div>
-        <div style="color: {text_color}; font-size: 32px; font-weight: bold;">
+        <div class="{flash_class}" style="color: {text_color}; font-size: 28px; font-weight: bold;">
             {label}
         </div>
     </div>
