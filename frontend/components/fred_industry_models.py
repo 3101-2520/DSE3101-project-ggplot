@@ -2,7 +2,9 @@ import pandas as pd
 import streamlit as st
 import requests
 import certifi
+from utils import apply_custom_font
 
+apply_custom_font()
 
 def fetch_fred_series(series_id: str, api_key: str) -> pd.Series:
     """Fetches the standard, clean historical series from FRED."""

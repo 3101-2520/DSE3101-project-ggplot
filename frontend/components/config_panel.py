@@ -1,14 +1,18 @@
 import streamlit as st
+from utils import apply_custom_font
+
+# This single function call applies IBM Plex Mono to the entire file
+apply_custom_font()
 
 def render():
     st.subheader("Model Configuration")
     st.markdown("Select the nowcasting models to display:")
 
-    # Create the tickboxes 
+    # Create the tickboxes (These will all automatically use IBM Plex Mono)
     with st.container():
         ar_model = st.checkbox("AR Model (Benchmark)", value=True)
-        adl_model = st.checkbox("ADL Model", value=False)      # --- ADDED BACK ---
-        bridge_model = st.checkbox("Bridge Model", value=True) # --- ADDED BACK ---
+        adl_model = st.checkbox("ADL Model", value=False)      
+        bridge_model = st.checkbox("Bridge Model", value=True) 
         atl_fed = st.checkbox("Atlanta Fed (GDPNow)", value=False)
         stl_fed = st.checkbox("St. Louis Fed Forecast", value=False)
 

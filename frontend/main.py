@@ -5,6 +5,9 @@ from pathlib import Path
 import subprocess
 import pandas as pd
 import numpy as np
+from utils import apply_custom_font
+
+apply_custom_font()
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(layout="wide", page_title="GDP Nowcast Terminal")
@@ -192,13 +195,28 @@ def success_popup():
     st.success("✅ Nowcast dashboard updated successfully!")
     st.markdown("The latest FRED data has been downloaded and the GDP models have been re-run.")
 
-
 # --- 9. PAGE STYLING ---
 st.markdown("""
     <style>
     .main {
         background-color: #0e1117;
         color: white;
+        font-family: 'IBM Plex Mono', monospace; 
+    }
+
+    /* --- NEW: FORCE HEADERS TO USE THE FONT --- */
+    h1, h2, h3, h4, h5, h6, span {
+        font-family: 'IBM Plex Mono', monospace !important;
+    }
+
+    /* --- NEW: FORCE TABS TO USE THE FONT --- */
+    button[data-baseweb="tab"] {
+        font-family: 'IBM Plex Mono', monospace !important;
+    }
+    
+    button[data-baseweb="tab"] > div[data-testid="stMarkdownContainer"] > p {
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: 18px; /* Optional: Make tab text a bit larger */
     }
 
     [data-testid="stMetric"] {
@@ -206,6 +224,7 @@ st.markdown("""
         padding: 15px;
         border-radius: 8px;
         border: 1px solid #30363d;
+        font-family: 'IBM Plex Mono', monospace; 
     }
 
     div.stButton > button {
@@ -216,6 +235,7 @@ st.markdown("""
         color: #A0AAB5;
         font-size: 22px;
         font-weight: bold;
+        font-family: 'IBM Plex Mono', monospace; 
         transition: all 0.3s ease;
     }
 
@@ -234,7 +254,8 @@ col_title, col_status = st.columns([3, 1])
 with col_title:
     st.title("GDP Nowcast Terminal")
     st.markdown(
-        "DSE3101 | <span style='background-color:#00ff00; padding:2px 8px; border-radius:10px; color: black; font-weight: bold;'>⚡ LIVE FEED</span>",
+        # --- ADDED FONT DIRECTLY TO THE LIVE FEED SPAN TAG ---
+        "DSE3101 | <span style='background-color:#00ff00; padding:2px 8px; border-radius:10px; color: black; font-weight: bold; font-family: \"IBM Plex Mono\", monospace;'>⚡ LIVE FEED</span>",
         unsafe_allow_html=True
     )
 

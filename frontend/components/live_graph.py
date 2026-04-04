@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
+from utils import apply_custom_font
+
+apply_custom_font()
 
 @st.cache_data
 def load_live_nowcast():
@@ -75,7 +78,12 @@ def render():
             marker=dict(size=22, color="#00FF00", symbol="circle", line=dict(color="white", width=2)),
             text=[f"{latest_pred:.2f}%"],
             textposition="top center",
-            textfont=dict(size=16, color="#00FF00", family="Arial Black"),
+            # --- OVERRODE ARIAL BLACK WITH TERMINAL FONT ---
+            textfont=dict(
+                size=16, 
+                color="#00FF00", 
+                family="'IBM Plex Mono', monospace"
+            ),
             showlegend=False
         ))
 
@@ -86,6 +94,20 @@ def render():
         template="plotly_dark",
         xaxis_title="Time of Prediction",
         yaxis_title="Predicted GDP Growth (%)",
+        
+        # --- EXPLICITLY SETTING IBM PLEX MONO ---
+        font=dict(
+            family="'IBM Plex Mono', monospace", 
+            size=12,
+            color="#E0E0E0"
+        ),
+        title_font=dict(
+            family="'IBM Plex Mono', monospace",
+            size=16,
+            color="white"
+        ),
+        # ----------------------------------------
+        
         xaxis=dict(
             categoryorder="array", 
             categoryarray=m_labels # Uses the mapped months!

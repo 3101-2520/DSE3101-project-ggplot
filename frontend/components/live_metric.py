@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 from pathlib import Path
+from utils import apply_custom_font
+
+apply_custom_font()
 
 @st.cache_data
 def get_live_value():
@@ -34,6 +37,7 @@ def render():
         border-radius: 12px;
         text-align: center;
         border: 1px solid #30363d;
+        font-family: 'IBM Plex Mono', monospace; /* <--- EXPLICITLY SET THE FONT HERE */
     ">
         <div style="color: #A0AAB5; font-size: 16px;">
             Current Bridge Nowcast ({quarter if quarter else 'N/A'})

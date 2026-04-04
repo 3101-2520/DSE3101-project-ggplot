@@ -2,6 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
+from utils import apply_custom_font
+
+apply_custom_font()
 
 @st.cache_data
 def load_evolution_data():
@@ -53,7 +56,9 @@ def render(gdp_data):
         line=dict(color="#00E5FF", width=3), 
         marker=dict(size=12, symbol="circle", color="#00E5FF"),
         text=[f"{v:.2f}%" if pd.notna(v) else "" for v in q_data['prediction']],
-        textposition="top center"
+        textposition="top center",
+        # Force the data labels to use the font too
+        textfont=dict(family="'IBM Plex Mono', monospace") 
     ))
     
     # The Actual GDP Target Line (Neon Green)
@@ -64,13 +69,32 @@ def render(gdp_data):
             line_color="#00FF00", 
             annotation_text=f"Actual GDP Print: {actual_gdp:.2f}%", 
             annotation_position="bottom right",
-            annotation_font=dict(color="#00FF00", size=14)
+            # --- UPDATED TO MATCH IBM PLEX MONO ---
+            annotation_font=dict(
+                family="'IBM Plex Mono', monospace", 
+                color="#00FF00", 
+                size=14
+            )
         )
         
     fig.update_layout(
         template="plotly_dark",
         xaxis_title="Time of Prediction",
         yaxis_title="Predicted GDP Growth (%)",
+        
+        # --- NEW GLOBAL FONT SETTINGS ---
+        font=dict(
+            family="'IBM Plex Mono', monospace", 
+            size=12,
+            color="#E0E0E0"
+        ),
+        title_font=dict(
+            family="'IBM Plex Mono', monospace",
+            size=16,
+            color="white"
+        ),
+        # --------------------------------
+        
         xaxis=dict(
             categoryorder="array", 
             categoryarray=["1st Month", "2nd Month", "3rd Month", "Month After"]

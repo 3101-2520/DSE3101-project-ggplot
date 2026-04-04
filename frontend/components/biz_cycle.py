@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
+from utils import apply_custom_font
 from pathlib import Path
+
+apply_custom_font()
 
 def render(gdp_data):
     # 1. Fetch the Live Prediction directly from the CSV
@@ -66,6 +69,7 @@ def render(gdp_data):
         border-radius: 12px;
         text-align: center;
         border: 1px solid #30363d;
+        font-family: 'IBM Plex Mono', monospace; 
     ">
         <div style="color: #A0AAB5; font-size: 16px;">
             Live Business Cycle ({quarter_str if quarter_str else 'N/A'})

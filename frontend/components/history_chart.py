@@ -3,6 +3,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
 from .fred_industry_models import get_historical_nowcasts
+from utils import apply_custom_font
+
+apply_custom_font()
 
 # --- 1. NEW UNIVERSAL CSV LOADER (Added back from yesterday) ---
 @st.cache_data
@@ -82,8 +85,43 @@ def render(gdp_growth):
     else:
         valid_nowcasts = pd.DataFrame(index=full_labels)
 
-    fig = go.Figure()
     active_models = st.session_state.get("active_models", [])
+
+    # --- PRE-LOAD CSV DATA ---
+    ar_preds = load_model_csv("historical_gdp_ar_predictions.csv") if "AR Model" in active_models else pd.Series()
+    adl_preds = load_model_csv("historical_gdp_adl_predictions.csv") if "ADL Model" in active_models else pd.Series()
+    bridge_preds = load_model_csv("historical_gdp_bridge_predictions.csv") if "Bridge Model" in active_models else pd.Series()
+
+    # --- TRUNCATION LOGIC: Check for empty future quarters ---
+    check_df = pd.DataFrame(index=full_labels)
+    
+    if "Real GDP (Actual)" in valid_nowcasts.columns:
+        check_df["Real GDP (Actual)"] = valid_nowcasts["Real GDP (Actual)"]
+    if "AR Model" in active_models and not ar_preds.empty:
+        check_df["AR Model"] = ar_preds.reindex(full_labels)
+    if "ADL Model" in active_models and not adl_preds.empty:
+        check_df["ADL Model"] = adl_preds.reindex(full_labels)
+    if "Bridge Model" in active_models and not bridge_preds.empty:
+        check_df["Bridge Model"] = bridge_preds.reindex(full_labels)
+    if "Atlanta Fed" in active_models and "Atlanta Fed Forecast" in valid_nowcasts.columns:
+        check_df["Atlanta Fed Forecast"] = valid_nowcasts["Atlanta Fed Forecast"]
+    if "St. Louis Fed" in active_models and "St. Louis Fed Forecast" in valid_nowcasts.columns:
+        check_df["St. Louis Fed Forecast"] = valid_nowcasts["St. Louis Fed Forecast"]
+
+    # Find the first quarter where *every* plotted series is NaN
+    truncate_idx = len(full_labels)
+    if not check_df.empty:
+        for i, label in enumerate(full_labels):
+            if check_df.loc[label].isna().all():
+                truncate_idx = i
+                break
+                
+    # Truncate labels and re-align nowcasts
+    full_labels = full_labels[:truncate_idx]
+    valid_nowcasts = valid_nowcasts.reindex(full_labels)
+
+    # --- PLOTTING ---
+    fig = go.Figure()
 
     # --- TEAM'S NEW ACTUAL GDP LOGIC ---
     if "Real GDP (Actual)" in valid_nowcasts.columns:
@@ -97,51 +135,44 @@ def render(gdp_growth):
             connectgaps=False 
         ))
 
-    # --- AR MODEL (Using Fast CSV Loader) ---
-    if "AR Model" in active_models:
-        ar_preds = load_model_csv("historical_gdp_ar_predictions.csv")
-        if not ar_preds.empty:
-            ar_zoom = (ar_preds).reindex(full_labels) 
-            fig.add_trace(go.Scatter(
-                x=full_labels,         
-                y=ar_zoom.values,      
-                mode="lines+markers",
-                name="AR Model (Benchmark)",
-                line=dict(dash="dash", width=2, color="#E74C3C"), 
-                marker=dict(size=6),
-                connectgaps=False
-            ))
+    # --- AR MODEL ---
+    if "AR Model" in active_models and not ar_preds.empty:
+        ar_zoom = ar_preds.reindex(full_labels) 
+        fig.add_trace(go.Scatter(
+            x=full_labels,         
+            y=ar_zoom.values,      
+            mode="lines+markers",
+            name="AR Model (Benchmark)",
+            line=dict(dash="dash", width=2, color="#E74C3C"), 
+            marker=dict(size=6),
+            connectgaps=False
+        ))
 
+    # --- ADL MODEL ---
+    if "ADL Model" in active_models and not adl_preds.empty:
+        adl_zoom = adl_preds.reindex(full_labels) 
+        fig.add_trace(go.Scatter(
+            x=full_labels,         
+            y=adl_zoom.values,      
+            mode="lines+markers",
+            name="ADL Model",
+            line=dict(dash="dashdot", width=2.5, color="#9B59B6"), 
+            marker=dict(size=7, symbol="square"),
+            connectgaps=False
+        ))
 
-    # --- ADL MODEL (Using Fast CSV Loader) ---
-    if "ADL Model" in active_models:
-        adl_preds = load_model_csv("historical_gdp_adl_predictions.csv")
-        if not adl_preds.empty:
-            adl_zoom = (adl_preds).reindex(full_labels) 
-            fig.add_trace(go.Scatter(
-                x=full_labels,         
-                y=adl_zoom.values,      
-                mode="lines+markers",
-                name="ADL Model",
-                line=dict(dash="dashdot", width=2.5, color="#9B59B6"), 
-                marker=dict(size=7, symbol="square"),
-                connectgaps=False
-            ))
-
-    # --- BRIDGE MODEL (Using Fast CSV Loader) ---
-    if "Bridge Model" in active_models:
-        bridge_preds = load_model_csv("historical_gdp_bridge_predictions.csv")
-        if not bridge_preds.empty:
-            bridge_zoom = bridge_preds.reindex(full_labels)
-            fig.add_trace(go.Scatter(
-                x=full_labels,         
-                y=bridge_zoom.values,      
-                mode="lines+markers",
-                name="Bridge Model",
-                line=dict(dash="longdash", width=2.5, color="#F1C40F"), 
-                marker=dict(size=7, symbol="diamond"),
-                connectgaps=False
-            ))
+    # --- BRIDGE MODEL ---
+    if "Bridge Model" in active_models and not bridge_preds.empty:
+        bridge_zoom = bridge_preds.reindex(full_labels)
+        fig.add_trace(go.Scatter(
+            x=full_labels,         
+            y=bridge_zoom.values,      
+            mode="lines+markers",
+            name="Bridge Model",
+            line=dict(dash="longdash", width=2.5, color="#F1C40F"), 
+            marker=dict(size=7, symbol="diamond"),
+            connectgaps=False
+        ))
 
     if "Atlanta Fed" in active_models and "Atlanta Fed Forecast" in valid_nowcasts.columns:
         fig.add_trace(go.Scatter(
@@ -171,6 +202,20 @@ def render(gdp_growth):
         hovermode="x unified",
         xaxis_title="Quarter",
         yaxis_title="Growth (%)",
+        
+        # --- EXPLICITLY SETTING IBM PLEX MONO ---
+        font=dict(
+            family="'IBM Plex Mono', monospace", 
+            size=12,
+            color="#E0E0E0"
+        ),
+        title_font=dict(
+            family="'IBM Plex Mono', monospace",
+            size=16,
+            color="white"
+        ),
+        # ----------------------------------------
+
         legend=dict(
             orientation="h",
             yanchor="bottom",
