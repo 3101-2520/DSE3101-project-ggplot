@@ -23,7 +23,7 @@ from src.data_preprocessing import (
 from export_ar_history import build_historical_ar_csv
 from export_adl_history import build_historical_adl_csv
 from export_bridge_history import build_historical_bridge_csv
-from frontend.components.atlanta_fed import annualize_gdp_growth
+from frontend.components.fred_industry_models import annualize_gdp_growth
 
 
 # --- 4. CUSTOM LOADERS FOR LIVE API FILES ---
@@ -157,23 +157,14 @@ def prepare_bridge_history(data, selected):
 ar_history_df = prepare_ar_history(gdp_data)
 adl_history_df = prepare_adl_history(data)
 
-# bridge_selected_variables = [
-#     "IPDMAT",
-#     "DPCERA3M086SBEA",
-#     "PAYEMS",
-#     "UEMP15T26",
-#     "PERMITNE",
-#     "UNRATE",
-#     "HWIURATIO",
-# ]
 bridge_selected_variables = [
-    "IPDMAT",
-    "DPCERA3M086SBEA",
-    "PAYEMS",
-    "UEMP15T26",
-    "PERMITNE",
-    "UNRATE",
-]
+    'DPCERA3M086SBEA', 
+    'UEMP15T26', 
+    'DMANEMP', 
+    'IPDMAT', 
+    'W875RX1', 
+    'UNRATE']
+
 bridge_history_df = prepare_bridge_history(data, bridge_selected_variables)
 
 
