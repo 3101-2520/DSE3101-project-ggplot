@@ -2,6 +2,7 @@ import streamlit as st
 from datetime import datetime
 import sys
 from pathlib import Path
+import subprocess
 import pandas as pd
 import numpy as np
 
@@ -195,6 +196,10 @@ except ModuleNotFoundError:
         intra_quarter_chart,
         live_graph,
     )
+@st.dialog("Dashboard Update")
+def success_popup():
+    st.success("✅ Nowcast dashboard updated successfully!")
+    st.markdown("The latest FRED data has been downloaded and the GDP models have been re-run.")
 
 
 # --- 9. PAGE STYLING ---
@@ -247,9 +252,52 @@ with col_status:
 
 st.divider()
 
+# Check if the pop-up trigger was set
+if st.session_state.get("show_popup", False):
+    # Reset the trigger immediately so it doesn't get stuck in an infinite loop
+    st.session_state["show_popup"] = False 
+    success_popup()
 
 # --- 11. TABS ---
 tab1, tab2, tab3 = st.tabs(["Right Now", "Monthly Nowcast", "History Chart"])
+
+with tab1:
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        biz_cycle.render(gdp_data)
+
+    with col2:
+        live_metric.render()
+
+    with col3:
+        if st.button("Refresh data (Its gonna take like 2mins bro)", use_container_width=True):
+            # Show a loading spinner so the user knows it's thinking
+            with st.spinner("Downloading FRED Data & Running Nowcast..."):
+                try:
+                    # 1. Run the FRED Data downloader
+                    fred_script = ROOT_DIR / "src"/ "api_preprocessing.py"
+                    subprocess.run([sys.executable, str(fred_script)], check=True)
+                    
+                    # 2. Run the Nowcast Model to generate new predictions
+                    model_script = ROOT_DIR / "src"/ "live_nowcast.py"
+                    subprocess.run([sys.executable, str(model_script)], check=True)
+                    st.session_state["show_popup"] = True         
+                              
+                    # 3. Clear old memory and reload the page with the new CSVs!
+                    st.cache_data.clear()
+                    st.rerun()
+                    
+                except subprocess.CalledProcessError as e:
+                    st.error(f"Pipeline failed! Check terminal for details. Error code: {e.returncode}")
+                except Exception as e:
+                    st.error(f"An unexpected error occurred: {e}")
+
+    st.divider()
+    st.container()
+    live_graph.render()
 
 
 with tab2:
@@ -266,24 +314,3 @@ with tab3:
 
     with col2:
         history_chart.render(gdp_data)
-
-
-with tab1:
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        biz_cycle.render(gdp_data)
-
-    with col2:
-        live_metric.render()
-
-    with col3:
-        if st.button("🔄 Refresh", use_container_width=True):
-            st.cache_data.clear()
-            st.rerun()
-
-    st.divider()
-    st.container()
-    live_graph.render()

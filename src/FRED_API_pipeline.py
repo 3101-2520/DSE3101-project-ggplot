@@ -64,11 +64,15 @@ def fetch_monthly_series(series_ids, start_date, end_date, sleep_seconds=0.5):
 
     return df, failed_ids
 
-def fetch_quarterly_gdp(series_id='GDPC1', start_date='1960-01-01', end_date='2020-06-30'):
+def fetch_quarterly_gdp(series_id='GDPC1', start_date='1960-01-01', end_date=None):
     """
     Fetch quarterly GDP series.
     Returns a pandas Series with DatetimeIndex.
     """
+    # Dynamically set end_date to today if not explicitly provided
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
     fred = get_fred_client()
     gdp = fred.get_series(
         series_id,

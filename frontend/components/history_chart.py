@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from pathlib import Path
-from .atlanta_fed import get_historical_nowcasts
+from .fred_industry_models import get_historical_nowcasts
 
 # --- 1. NEW UNIVERSAL CSV LOADER (Added back from yesterday) ---
 @st.cache_data
