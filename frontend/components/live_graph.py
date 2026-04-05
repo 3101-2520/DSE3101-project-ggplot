@@ -108,7 +108,7 @@ def render(show_50=False, show_80=False):
         return
 
     # Updated Title
-    st.markdown(f"<h4 style='color: white; margin-bottom: 0px;'>Live Bridge Nowcast Evolution</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h4 style='color: white; margin-bottom: 0px;'>Live Bridge Nowcast Evolution </h4>", unsafe_allow_html=True)
 
     fig = go.Figure()
 
