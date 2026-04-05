@@ -387,8 +387,10 @@ with st.sidebar:
         config_panel.render() 
         
     elif page == "Live Statistics":
-        st.info("No specific filters for live view.")
-    
+        st.markdown("<p style='color:#a1a1aa; font-size: 14px; margin-bottom: 5px;'>Fan Chart Settings</p>", unsafe_allow_html=True)
+        show_50 = st.toggle("Show 50% Interval", value=True)
+        show_80 = st.toggle("Show 80% Interval", value=True)
+        
     elif page == "Monthly Nowcast":
         selected_quarter = intra_quarter_chart.get_sidebar_filters()
 
@@ -404,7 +406,6 @@ if page == "Live Statistics":
     with st.container():
         # Target quarters
         quarter, bridge_val = get_live_value()
-        st.write(f"Searching for: '{quarter}'") 
         # 2. Fetch the Fed numbers based on that quarter
         atl_val, stl_val = get_fred_data(quarter)
         # 3. Create the 5-column grid
@@ -434,7 +435,7 @@ if page == "Live Statistics":
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error: {e}")
-        live_graph.render()
+        live_graph.render(show_50, show_80)
 
 elif page == "Monthly Nowcast":
     st.markdown("<br>", unsafe_allow_html=True)

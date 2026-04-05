@@ -135,7 +135,7 @@ if __name__ == "__main__":
     print("\nFitting AR indicator models...")
     ar_models = fit_ar_models(MD_trans, selected)
 
-    # Fit bridge regression on quarrters where GDP is known
+    # Fit bridge regression on quarters where GDP is known
 
     print("\nFitting bridge model...")
     train_data = data.loc[data["GDP_growth"].notna()].copy()
@@ -204,8 +204,12 @@ if __name__ == "__main__":
                 print(f"Warning: Missing predictor data for {target} at flash {flash}. Skipping this flash prediction.")
                 continue
 
-            pred = bridge_model.predict(x_forecast).iloc[0]
+            prediction_results = bridge_model.get_prediction(x_forecast)
+            pred = prediction_results.predicted_mean[0]
+            se = prediction_results.se_obs[0] # standard error
+
             bridge_preds[f"bridge_flash{flash}"] = pred
+            bridge_preds[f"bridge_flash{flash}_se"] = se # Save it to the CSV
             print(f"Bridge flash {flash} prediction for {target}: {pred:.4f}")    
 
     # ADL benchmark prediction
@@ -244,9 +248,12 @@ if __name__ == "__main__":
 
         row = {
             "quarter": target,
-            "bridge_flash1": bridge_preds["bridge_flash1"],
-            "bridge_flash2": bridge_preds["bridge_flash2"],
-            "bridge_flash3": bridge_preds["bridge_flash3"],
+            "bridge_flash1": bridge_preds.get("bridge_flash1"),
+            "bridge_flash1_se": bridge_preds.get("bridge_flash1_se"), 
+            "bridge_flash2": bridge_preds.get("bridge_flash2"),
+            "bridge_flash2_se": bridge_preds.get("bridge_flash2_se"), 
+            "bridge_flash3": bridge_preds.get("bridge_flash3"),
+            "bridge_flash3_se": bridge_preds.get("bridge_flash3_se"), 
             "adl_benchmark": adl_pred,
             "ar_benchmark": ar_pred
             }
