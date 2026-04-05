@@ -79,13 +79,22 @@ def get_column_value_for_quarter(df, quarter, column_name):
 def render_model_card(title, quarter, value, height=120):
     value = scale_if_needed(value)
 
-    text_color = "#00ff00"
-    flash_class = "flash-green"
+    # Default styling
+    text_color = "#00A86B"   # static green for AR/ADL
+    flash_class = ""
 
     if value is not None and pd.notna(value):
         if value < 0:
             text_color = "#FF3333"
             flash_class = "flash-red"
+        else:
+            # Only Bridge gets pulsating green
+            if "Bridge" in title:
+                text_color = "#00ff00"
+                flash_class = "flash-green"
+            else:
+                text_color = "#00A86B"
+                flash_class = ""
     else:
         text_color = "#A0AAB5"
         flash_class = ""
