@@ -123,11 +123,6 @@ if __name__ == "__main__":
         
         MD_trans = MD_trans.sort_index()
 
-    #Fit AR indicator model
-
-    print("\nFitting AR indicator models...")
-    ar_models = fit_ar_models(MD_trans, selected)
-
     # Fit bridge regression on quarrters where GDP is known
 
     print("\nFitting bridge model...")
@@ -144,6 +139,9 @@ if __name__ == "__main__":
     # Run nowcast
 
     results = []
+
+    bridge_target_series = data["GDP_growth"].copy()
+    adl_target_series = data["GDP_growth"].copy()
 
     for target in target_quarter:
         print(f"\nNowcasting {target}...")
@@ -169,18 +167,31 @@ if __name__ == "__main__":
         if target not in data.index:
             data.loc[target] = np.nan
             data = data.sort_index()
+        
+        data.loc[target, "covid_dummy"] = 0
+
+        bridge_data_for_forecast = data.copy()
+        bridge_data_for_forecast["GDP_growth"] = bridge_target_series
+
 
         # Bridge flash predictions
         for flash in flashes:
+            flash_cutoff = quarter_months[flash - 1]
+
+            # fit ar models on data available up to flash cutoff
+
+            md_observed = MD_trans.loc[:flash_cutoff, selected].copy()
+            ar_models = fit_ar_models(md_observed, selected)
+
             md_flash = _make_flash_monthly_panel(MD_trans, target, flash, selected)
             md_filled = fill_ragged_edge(md_flash, ar_models, selected)
             monthly_q_filled = aggregate_to_quarterly(md_filled)
             if not isinstance(monthly_q_filled.index, pd.PeriodIndex):
                 monthly_q_filled.index = monthly_q_filled.index.to_period('Q')
-            
+
             x_forecast = _build_flash_predictor_row(
                 monthly_q_filled=monthly_q_filled,
-                data=data,
+                data=bridge_data_for_forecast,
                 forecast_quarter=target,
                 selected=selected,
                 target_col='GDP_growth'
@@ -199,12 +210,23 @@ if __name__ == "__main__":
 
             pred = bridge_model.predict(x_forecast).iloc[0]
             bridge_preds[f"bridge_flash{flash}"] = pred
-            print(f"Bridge flash {flash} prediction for {target}: {pred:.4f}")    
+            print(f"Bridge flash {flash} prediction for {target}: {pred:.4f}")
+
+        bridge_recursive_pred = np.nan
+        for candidate in ["bridge_flash3", "bridge_flash2", "bridge_flash1"]:
+            if not pd.isna(bridge_preds[candidate]):
+                bridge_recursive_pred = bridge_preds[candidate]
+                break
+        
+        if not pd.isna(bridge_recursive_pred):
+            bridge_target_series.loc[target] = bridge_recursive_pred
 
     # ADL benchmark prediction
         adl_pred = np.nan
         try:
-            adl_full = prepare_adl_data(data.copy(), target_col="GDP_growth")
+            adl_data_for_forecast = data.copy()
+            adl_data_for_forecast["GDP_growth"] = adl_target_series
+            adl_full = prepare_adl_data(adl_data_for_forecast, target_col="GDP_growth")
             adl_feature_cols = ["GDP_growth_lag1", "GDP_growth_lag2", "BAA - AAA_lag1", "UNRATE_lag1", "HOUST_lag1"]
             if target in adl_full.index:
                 x_adl_forecast = adl_full.loc[[target], adl_feature_cols].copy()
@@ -213,6 +235,7 @@ if __name__ == "__main__":
                     x_adl_forecast = sm.add_constant(x_adl_forecast, has_constant='add')
                     x_adl_forecast = x_adl_forecast.reindex(columns=adl_model.model.exog_names)
                     adl_pred = adl_model.predict(x_adl_forecast).iloc[0]
+                    adl_target_series.loc[target] = adl_pred
                     print(f"ADL benchmark prediction for {target}: {adl_pred:.4f}")
                 else:
                     print(f"Warning: Missing predictor data for ADL benchmark at {target}. Skipping ADL prediction.")
@@ -227,7 +250,7 @@ if __name__ == "__main__":
             steps_ahead = target.ordinal - latest_gdp_quarter.ordinal
             if steps_ahead >= 1:
                 ar_forecasts = ar_model.forecast(steps=steps_ahead)
-                ar_pred = ar_forecasts[-1]
+                ar_pred = ar_forecasts.iloc[-1]
                 print(f"AR benchmark prediction for {target}: {ar_pred:.4f}")
             else:
                 print(f"Warning: Target quarter {target} is not ahead of latest GDP quarter {latest_gdp_quarter}. Skipping AR benchmark prediction.")
