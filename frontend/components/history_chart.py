@@ -99,12 +99,44 @@ def render(gdp_data, year, q, window_size):
     if selected_period not in gdp_data.index:
         st.warning(f"Note: {year} {q} has no actual GDP data yet. Displaying available estimates.")
 
+
+    # Build a window that always tries to show exactly window_size quarters
+    min_period = min(gdp_data.index.min(), max_allowed_period)
+    max_period = max_allowed_period
+
     half_window = window_size // 2
-    full_periods = pd.period_range(start=selected_period - half_window, end=selected_period + half_window, freq="Q")
-    
-    # HARD LIMIT: Truncate periods strictly up to current_quarter - 2
-    full_periods = [p for p in full_periods if p <= max_allowed_period]
+
+    # Start with selected quarter centered
+    start_period = selected_period - half_window
+    end_period = selected_period + half_window
+
+    # If the right edge goes beyond the max allowed quarter, shift the whole window left
+    if end_period > max_period:
+        shift = end_period - max_period
+        start_period -= shift
+        end_period -= shift
+
+    # If the left edge goes before the earliest available quarter, shift the whole window right
+    if start_period < min_period:
+        shift = min_period - start_period
+        start_period += shift
+        end_period += shift
+
+    # Final clamp in case the available history is smaller than window_size
+    start_period = max(start_period, min_period)
+    end_period = min(end_period, max_period)
+
+    full_periods = list(pd.period_range(start=start_period, end=end_period, freq="Q"))
+
+    # If there are still too many or too few due to boundary issues, trim/pad by recomputing from the right
+    if len(full_periods) > window_size:
+        full_periods = full_periods[:window_size]
+    elif len(full_periods) < window_size:
+        start_period = max(min_period, end_period - (window_size - 1))
+        full_periods = list(pd.period_range(start=start_period, end=end_period, freq="Q"))
+
     full_labels = [str(p).replace("Q", " Q") for p in full_periods]
+    selected_label = str(selected_period).replace("Q", " Q")
 
     # Pre-load active models from session state (set in config_panel)
     active_models = st.session_state.get("active_models", [])
@@ -173,11 +205,37 @@ def render(gdp_data, year, q, window_size):
         hovermode="x unified",
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        margin=dict(l=0, r=0, t=80, b=40),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.12,
+            xanchor="right",
+            x=1
+        ),
+        margin=dict(l=0, r=0, t=120, b=40),
         xaxis=dict(gridcolor="#30363d", zeroline=False),
         yaxis=dict(gridcolor="#30363d", title="Annualized Growth (%)")
     )
     fig.add_hline(y=0, line_dash="solid", line_color="white", opacity=0.3)
+
+    if selected_label in full_labels:
+        selected_idx = full_labels.index(selected_label)
+
+    fig.add_vrect(
+        x0=selected_idx - 0.5,
+        x1=selected_idx + 0.5,
+        fillcolor="rgba(255, 255, 255, 0.10)",
+        line_width=0,
+        layer="below"
+    )
+
+    fig.add_annotation(
+        x=selected_label,
+        y=1.08,
+        yref="paper",
+        text=f"Selected: {selected_label}",
+        showarrow=False,
+        font=dict(size=12, color="white")
+    )
     
     st.plotly_chart(fig, use_container_width=True)

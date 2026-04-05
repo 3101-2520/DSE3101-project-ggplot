@@ -64,28 +64,7 @@ def render(gdp_data):
         except Exception:
             pass 
 
-    st.markdown("""
-    <style>
-    @keyframes pulse-green {
-        0% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
-        50% { opacity: 0.5; text-shadow: 0 0 20px #00FF00; }
-        100% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
-    }
-    @keyframes pulse-red {
-        0% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
-        50% { opacity: 0.5; text-shadow: 0 0 20px #FF3333; }
-        100% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
-    }
-    .flash-green {
-        animation: pulse-green 2s infinite;
-    }
-    .flash-red {
-        animation: pulse-red 2s infinite;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # 4. Display the card
+    # 3. Display the card
     st.markdown(f"""
     <div style="
         background-color: #1e2127;
@@ -93,16 +72,36 @@ def render(gdp_data):
         border-radius: 12px;
         text-align: center;
         border: 1px solid #30363d;
-        height: 100px;
+        height: 120px;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        box-sizing: border-box;
     ">
-        <div style="color: #A0AAB5; font-size: 14px; text-transform: uppercase; margin-bottom: 8px;">
+        <div style="
+            color: #A0AAB5;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        ">
             Live Business Cycle ({quarter_str if quarter_str else 'N/A'})
         </div>
-        <div class="{flash_class}" style="color: {text_color}; font-size: 28px; font-weight: bold;">
+        <div class="{flash_class}" style="
+            color: {text_color};
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1;
+        ">
             {label}
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+        

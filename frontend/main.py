@@ -217,39 +217,61 @@ def success_popup():
 st.markdown("""
     <style>
     @keyframes pulse-glow {
-    0% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
-    50% { opacity: 0.6; text-shadow: 0 0 20px #00ff00; }
-    100% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
+        0% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
+        50% { opacity: 0.6; text-shadow: 0 0 20px #00ff00; }
+        100% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
+    }
+
+    @keyframes pulse-green {
+        0% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
+        50% { opacity: 0.5; text-shadow: 0 0 20px #00FF00; }
+        100% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
+    }
+
+    @keyframes pulse-red {
+        0% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
+        50% { opacity: 0.5; text-shadow: 0 0 20px #FF3333; }
+        100% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
     }
 
     .flash-text {
-    animation: pulse-glow 2s infinite;
-    color: #00ff00;
-    font-weight: bold;
-    font-size: 2rem;
-    text-align: center;
-    margin: 0;
-        }
+        animation: pulse-glow 2s infinite;
+        color: #00ff00;
+        font-weight: bold;
+        font-size: 2rem;
+        text-align: center;
+        margin: 0;
+    }
+
+    .flash-green {
+        animation: pulse-green 2s infinite;
+    }
+
+    .flash-red {
+        animation: pulse-red 2s infinite;
+    }
 
     .custom-card {
-    background-color: #1e1e1e;
-    border: 1px solid #333;
-    border-radius: 12px;
-    padding: 20px;
-    height: 150px; /* Ensures all cards are same height */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
+        background-color: #1e1e1e;
+        border: 1px solid #333;
+        border-radius: 12px;
+        padding: 20px;
+        height: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        box-sizing: border-box;
     }
 
     .card-label {
-    color: #a1a1aa;
-    font-size: 0.8rem;
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    text-align: center;
+        color: #a1a1aa;
+        font-size: 0.8rem;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        text-align: center;
     }
+
     /* GLOBAL & MAIN AREA */
     .stApp {
         background-color: #0e1117;
@@ -271,12 +293,12 @@ st.markdown("""
 
     /* LARGE REFRESH BUTTON */
     div.stButton > button {
-        height: 100px;
+        height: 60px;
         background-color: #1e2127;
-        border: 1px solid #30363d;
+        border: 2px solid #5DADE2;
         border-radius: 12px;
         color: #A0AAB5;
-        font-size: 22px;
+        font-size: 34px;
         font-weight: bold;
         transition: all 0.3s ease;
     }
@@ -295,15 +317,12 @@ st.markdown("""
     /* MISC CLEANUP */
     hr {
         border-top: 1px solid #30363d !important;
-    }
-    footer {
-        visibility: hidden;
-    }
-    
-    /* Remove the default gap between the divider and columns */
-    hr {
         margin-top: 0rem !important;
         margin-bottom: 1rem !important;
+    }
+
+    footer {
+        visibility: hidden;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -315,36 +334,45 @@ def get_image_base64(image_path):
 current_dir = Path(__file__).parent
 image_path = current_dir / "assets" / "Team_logo.png"
 img_base64 = get_image_base64(image_path) if image_path.exists() else ""
-col_title, col_status = st.columns([4, 1])
+col_title, col_status = st.columns([4, 1.4])
 
 with col_title:
-    # 1. Title with Bootstrap Icon (No st.title padding issues)
     st.markdown(
-        '<h1 style="margin-bottom: 0;"><i class="bi bi-activity" style="color: #5DADE2; margin-right: 12px;"></i>GDP Nowcast Terminal</h1>', 
+        '<h1 style="margin-bottom: 0;"><i class="bi bi-activity" style="color: #5DADE2; margin-right: 12px;"></i>GDP Nowcast Terminal</h1>',
         unsafe_allow_html=True
     )
-    
-    # 2. A slightly softer, modern-looking LIVE badge
+
     st.markdown(
         f"<div style='color: #a1a1aa; font-size: 15px; margin-top: 5px;'>"
         f"DSE3101 &nbsp;|&nbsp; "
         f"<i class='bi bi-arrow-repeat' style='margin-right: 5px;'></i>"
         f"<b>Last Sync:</b> {datetime.now().strftime('%H:%M:%S')}"
-        f"</div>", 
+        f"</div>",
         unsafe_allow_html=True
     )
 
 with col_status:
-    if img_base64:
-        st.markdown(
-            f"""
-            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: 15px;">
-                <img src="data:image/png;base64,{img_base64}" width="100">
-            </div>
-            """, 
-            unsafe_allow_html=True
-        )
+    btn_col, logo_col = st.columns([1, 1])
 
+    with logo_col:
+        if img_base64:
+            st.markdown(
+                f"""
+                <div style="display: flex; justify-content: center; align-items: center; margin-top: 15px;">
+                    <img src="data:image/png;base64,{img_base64}" width="100">
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    with btn_col:
+        st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+
+        refresh_clicked = st.button(
+            "⟳ Refresh data",
+            use_container_width=True,
+            key="refresh_btn_header"
+        )
 st.divider()
 
 # --- 11. SIDEBAR ---
@@ -401,41 +429,52 @@ if st.session_state.get("success_popup", False):
 
 # --- 12. MAIN CONTENT AREA ---
 from frontend.components.fred_nowcast import get_fred_data, render_fred_card
-from frontend.components.live_metric import get_live_value
-if page == "Live Statistics":
-    with st.container():
-        # Target quarters
-        quarter, bridge_val = get_live_value()
-        # 2. Fetch the Fed numbers based on that quarter
-        atl_val, stl_val = get_fred_data(quarter)
-        # 3. Create the 5-column grid
-        col1, col2, col3, col4, col5 = st.columns([1.2, 1, 1, 1, 1.2])
-        with col1:
-            biz_cycle.render(gdp_data)
-        with col2:
-            live_metric.render() 
-        with col3:
-            render_fred_card("Atlanta GDPNow", atl_val, quarter)
+from frontend.components.live_metric import (
+    load_live_nowcast_df,
+    get_latest_bridge_value,
+)
 
-        with col4:
-            render_fred_card("St. Louis Fed", stl_val, quarter)
-        with col5:
-            if st.button("Refresh data (Takes ~2 mins)", use_container_width=True, key="refresh_btn"):
-                st.toast("Starting data pipeline...", icon="🚀")
-                with st.spinner("Accessing FRED API & Re-running Models..."):
-                    try:
-                        api_script = ROOT_DIR / "src" / "api_preprocessing.py"
-                        model_script = ROOT_DIR / "src" / "live_nowcast.py"
-                        
-                        subprocess.run([sys.executable, str(api_script)], check=True)
-                        subprocess.run([sys.executable, str(model_script)], check=True)
-                        
-                        st.session_state["success_popup"] = True
-                        st.cache_data.clear()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
-        live_graph.render(show_50, show_80)
+if page == "Live Statistics":
+    live_df = load_live_nowcast_df()
+    quarter, bridge_val = get_latest_bridge_value(live_df)
+    atl_val, stl_val = get_fred_data(quarter)
+
+    col1, col2, col3, col4, col5, col6 = st.columns([1.2, 1, 1, 1, 1, 1])
+
+    with col1:
+        biz_cycle.render(gdp_data)
+    with col2:
+        live_metric.render_bridge_card()
+    with col3:
+        live_metric.render_ar_card()
+    with col4:
+        live_metric.render_adl_card()
+    with col5:
+        render_fred_card("Atlanta GDPNow", atl_val, quarter)
+    with col6:
+        render_fred_card("St. Louis Fed", stl_val, quarter)
+
+    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+
+    live_graph.render(show_50, show_80)
+
+    if refresh_clicked:
+        st.toast("Starting data pipeline...", icon="🚀")
+        with st.spinner("Accessing FRED API & Re-running Models..."):
+            try:
+                api_script = ROOT_DIR / "src" / "api_preprocessing.py"
+                model_script = ROOT_DIR / "src" / "live_nowcast.py"
+
+                subprocess.run([sys.executable, str(api_script)], check=True)
+                subprocess.run([sys.executable, str(model_script)], check=True)
+
+                st.session_state["success_popup"] = True
+                st.cache_data.clear()
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error: {e}")
+
+       
 
 elif page == "Monthly Nowcast":
     st.markdown("<br>", unsafe_allow_html=True)

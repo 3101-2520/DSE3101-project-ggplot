@@ -21,20 +21,14 @@ def get_fred_data(target_quarter):
         return float(gdp_now), float(st_louis)
     except (KeyError, ValueError, TypeError):
         return None, None
+    
 def render_fred_card(label, value, quarter):
-    """
-    Renders a standalone metric card that matches the 
-    styling of the live_metric card.
-    """
-    # Unit correction (0.02 -> 2.00)
     display_val = value
     if display_val is not None and abs(display_val) < 0.5:
         display_val *= 100
 
-    # Formatting the string
     val_text = f"{display_val:.2f}%" if display_val is not None else "N/A"
 
-    # Display using the custom-card CSS already defined in main.py
     st.markdown(f"""
     <div style="
         background-color: #1e2127;
@@ -42,15 +36,32 @@ def render_fred_card(label, value, quarter):
         border-radius: 12px;
         text-align: center;
         border: 1px solid #30363d;
-        height: 100px; 
+        height: 120px;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        box-sizing: border-box;
     ">
-        <div style="color: #A0AAB5; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
+        <div style="
+            color: #A0AAB5;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        ">
             {label} ({quarter if quarter else 'N/A'})
         </div>
-        <div style="color: white; font-size: 28px; font-weight: bold;">
+        <div style="
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1;
+        ">
             {val_text}
         </div>
     </div>
