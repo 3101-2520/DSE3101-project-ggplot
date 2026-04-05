@@ -415,9 +415,9 @@ with st.sidebar:
         config_panel.render() 
         
     elif page == "Live Statistics":
-        st.markdown("<p style='color:#a1a1aa; font-size: 14px; margin-bottom: 5px;'>Fan Chart Settings</p>", unsafe_allow_html=True)
-        show_50 = st.toggle("Show 50% Interval", value=True)
-        show_80 = st.toggle("Show 80% Interval", value=True)
+        st.markdown("<p style='color:#a1a1aa; font-size: 14px; margin-bottom: 5px;'>Prediction Intervals</p>", unsafe_allow_html=True)
+        show_50 = st.toggle("50% Interval", value=False)
+        show_80 = st.toggle("80% Interval", value=False)
         
     elif page == "Monthly Nowcast":
         selected_quarter = intra_quarter_chart.get_sidebar_filters()

@@ -13,7 +13,7 @@ def load_live_nowcast():
     except Exception:
         return None
 
-def render(show_50=True, show_80=True):
+def render(show_50=False, show_80=False):
     row = load_live_nowcast()
     
     if row is None:
@@ -62,6 +62,9 @@ def render(show_50=True, show_80=True):
         # --- FAN CHART LOGIC ---
         z_80, z_50 = 1.28, 0.67
         
+        # Initialize an array for our dynamic hover text
+        hover_data = []
+
         if len(ses) == len(preds):
             upper_80 = [p + (se * z_80) for p, se in zip(preds, ses)]
             lower_80 = [p - (se * z_80) for p, se in zip(preds, ses)]
@@ -94,15 +97,21 @@ def render(show_50=True, show_80=True):
                     showlegend=False
                 ))
 
-        # --- CONDITIONAL TEXT LABELS ---
-        # If BOTH intervals are turned off, show text on the previous months
-        if not show_50 and not show_80:
-            track_mode = "lines+markers+text"
-            # Label all points EXCEPT the last one (which has its own big label)
-            track_text = [f"{p:.2f}%" for p in preds[:-1]] + [""]
+            # --- DYNAMIC HOVER TEXT GENERATOR ---
+            for i in range(len(preds)):
+                htext = f"Prediction: {preds[i]:.2f}%"
+                if show_50:
+                    htext += f"<br>50% Range: [{lower_50[i]:.2f}%, {upper_50[i]:.2f}%]"
+                if show_80:
+                    htext += f"<br>80% Range: [{lower_80[i]:.2f}%, {upper_80[i]:.2f}%]"
+                hover_data.append(htext)
         else:
-            track_mode = "lines+markers"
-            track_text = None
+            # Fallback if standard errors are missing
+            hover_data = [f"Prediction: {p:.2f}%" for p in preds]
+
+        # --- TEXT LABELS (Always ON) ---
+        track_mode = "lines+markers+text"
+        track_text = [f"{p:.2f}%" for p in preds[:-1]] + [""]
 
         # 1. The tracking line (Teal)
         fig.add_trace(go.Scatter(
@@ -110,17 +119,18 @@ def render(show_50=True, show_80=True):
             y=preds,
             mode=track_mode,
             text=track_text,
+            hovertext=hover_data[:-1], # Apply all but the last hover text here
             textposition="top center",
             textfont=dict(color="#00E5FF", size=13, family="Arial"),
             name="Evolution Track",
             line=dict(color="#00E5FF", width=3),
             marker=dict(size=10, color="#00E5FF"),
-            hovertemplate="<b>%{x}</b><br>Prediction: %{y:.2f}%<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>%{hovertext}<extra></extra>",
             hoverlabel=dict(bgcolor="#1e2127", font=dict(color="white", size=14), bordercolor="#30363d"),
             showlegend=False
         ))
 
-        # 2. Latest Flash Marker (Upgraded to Emerald Green)
+        # 2. Latest Flash Marker (Emerald Green)
         latest_month = months[-1]
         latest_pred = preds[-1]
         
@@ -131,12 +141,13 @@ def render(show_50=True, show_80=True):
             y=[latest_pred],
             mode="markers+text",
             name="Current Nowcast",
+            hovertext=[hover_data[-1]], # Apply the final hover text here
             marker=dict(size=22, color=emerald_green, symbol="circle", line=dict(color="white", width=2)),
             text=[f"{latest_pred:.2f}%"],
             textposition="top center",
             textfont=dict(size=16, color=emerald_green, family="Arial Black"),
-            hovertemplate="<b>Current Nowcast</b><br>%{x}<br>Value: %{y:.2f}%<extra></extra>",
-            hoverlabel=dict(bgcolor="#1e2127", font=dict(color=emerald_green, size=15), bordercolor=emerald_green),
+            hovertemplate="<b>Current Nowcast</b><br>%{x}<br>%{hovertext}<extra></extra>",
+            hoverlabel=dict(bgcolor="#1e2127", font=dict(color="white", size=14), bordercolor=emerald_green),
             showlegend=False
         ))
 
