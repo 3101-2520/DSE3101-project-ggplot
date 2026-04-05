@@ -1,33 +1,33 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from frontend.components.fred_industry_models import get_historical_nowcasts
+from fredapi import Fred
 
-def get_fred_data(target_quarter):
+@st.cache_data(ttl=3600)
+def get_fred_data(quarter):
     """
-    Fetches historical data and filters for the specific quarter 
-    provided by the bridge model.
+    Fetches the official Nowcasts directly from the LIVE FRED API.
     """
-    df_historical = get_historical_nowcasts()
-    
-    if df_historical.empty or target_quarter not in df_historical.index:
-        return None, None
-
     try:
-        # Pull specific scalars for the target quarter
-        gdp_now = df_historical.loc[target_quarter, "Atlanta Fed Forecast"]
-        st_louis = df_historical.loc[target_quarter, "St. Louis Fed Forecast"]
+        # Grabs your API key directly from .streamlit/secrets.toml
+        fred = Fred(api_key=st.secrets["FRED_API_KEY"])
         
-        return float(gdp_now), float(st_louis)
-    except (KeyError, ValueError, TypeError):
+        # Ping the API for both series
+        atl_series = fred.get_series('GDPNOW')
+        stl_series = fred.get_series('STLENI')
+        
+        # Drop any empty dates and grab the absolute latest prediction
+        atl_val = float(atl_series.dropna().iloc[-1]) if not atl_series.dropna().empty else None
+        stl_val = float(stl_series.dropna().iloc[-1]) if not stl_series.dropna().empty else None
+        
+        return atl_val, stl_val
+        
+    except Exception as e:
+        print(f"Error connecting to FRED: {e}")
         return None, None
     
 def render_fred_card(label, value, quarter):
-    display_val = value
-    if display_val is not None and abs(display_val) < 0.5:
-        display_val *= 100
-
-    val_text = f"{display_val:.2f}%" if display_val is not None else "N/A"
+    # Formats the raw API value safely (multiplier removed to prevent the 40% bug!)
+    val_text = f"{value:.2f}%" if value is not None else "N/A"
 
     st.markdown(f"""
     <div style="
