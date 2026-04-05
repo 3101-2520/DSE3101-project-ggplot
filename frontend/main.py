@@ -434,6 +434,26 @@ from frontend.components.live_metric import (
     get_latest_bridge_value,
 )
 
+# --- GLOBAL REFRESH LOGIC (Moved outside the page tabs!) ---
+if refresh_clicked:
+    st.toast("Starting data pipeline...", icon="🚀")
+    with st.spinner("Accessing FRED API & Re-running Models..."):
+        try:
+            api_script = ROOT_DIR / "src" / "api_preprocessing.py"
+            model_script = ROOT_DIR / "src" / "live_nowcast.py"
+            evo_script = ROOT_DIR / "export_bridge_evolution.py" 
+            
+            subprocess.run([sys.executable, str(api_script)], check=True)
+            subprocess.run([sys.executable, str(model_script)], check=True)
+            subprocess.run([sys.executable, str(evo_script)], check=True) 
+            
+            st.session_state["success_popup"] = True
+            st.cache_data.clear()
+            st.rerun()
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+# --- PAGE ROUTING ---
 if page == "Live Statistics":
     live_df = load_live_nowcast_df()
     quarter, bridge_val = get_latest_bridge_value(live_df)
@@ -457,24 +477,6 @@ if page == "Live Statistics":
     st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
 
     live_graph.render(show_50, show_80)
-
-    if refresh_clicked:
-        st.toast("Starting data pipeline...", icon="🚀")
-        with st.spinner("Accessing FRED API & Re-running Models..."):
-            try:
-                api_script = ROOT_DIR / "src" / "api_preprocessing.py"
-                model_script = ROOT_DIR / "src" / "live_nowcast.py"
-
-                subprocess.run([sys.executable, str(api_script)], check=True)
-                subprocess.run([sys.executable, str(model_script)], check=True)
-
-                st.session_state["success_popup"] = True
-                st.cache_data.clear()
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-
-       
 
 elif page == "Monthly Nowcast":
     st.markdown("<br>", unsafe_allow_html=True)
