@@ -15,11 +15,11 @@ from models.flash_nowcast import _make_flash_monthly_panel, _build_flash_predict
 from src.data_preprocessing import aggregate_to_quarterly
 
 
-def overwrite_next_quarter_flashes_123_with_live(df_evolution, full_data, live_nowcast_path=None, target_col="GDP_growth"):
+def overwrite_next_quarter_with_live_bridge(df_evolution, full_data, live_nowcast_path=None, target_col="GDP_growth"):
     """
-    For the next quarter after the last actual GDP quarter (e.g. 2026Q1),
-    overwrite only flashes 1, 2, 3 using live_nowcast_results.csv.
-    Keep flash 4 from the bridge evolution calculation.
+    For the next quarter after the last actual GDP quarter:
+    - overwrite nowcast_month 1,2,3 using live_nowcast_results.csv
+    - overwrite nowcast_month 4 with the latest available live flash
     """
     if live_nowcast_path is None:
         live_nowcast_path = ROOT_DIR / "data" / "live_nowcast_results.csv"
@@ -46,26 +46,37 @@ def overwrite_next_quarter_flashes_123_with_live(df_evolution, full_data, live_n
 
         live_row = live_match.iloc[0]
 
-        flash_map = {
-            1: live_row.get("bridge_flash1", np.nan),
-            2: live_row.get("bridge_flash2", np.nan),
-            3: live_row.get("bridge_flash3", np.nan),
-        }
+        flash1 = live_row.get("bridge_flash1", np.nan)
+        flash2 = live_row.get("bridge_flash2", np.nan)
+        flash3 = live_row.get("bridge_flash3", np.nan)
 
-        # remove only flash 1/2/3 rows for that quarter
+        # month 4 = latest available live flash
+        month4 = np.nan
+        for v in [flash3, flash2, flash1]:
+            if pd.notna(v):
+                month4 = v
+                break
+
+        # remove existing rows for this target quarter, months 1-4
         mask_remove = (
             (df_evolution["target_quarter"] == target_quarter) &
-            (df_evolution["nowcast_month"].isin([1, 2, 3]))
+            (df_evolution["nowcast_month"].isin([1, 2, 3, 4]))
         )
         df_evolution = df_evolution.loc[~mask_remove].copy()
 
-        # append live flash 1/2/3 rows
         new_rows = []
-        for flash, val in flash_map.items():
+        flash_map = {
+            1: flash1,
+            2: flash2,
+            3: flash3,
+            4: month4,
+        }
+
+        for m, val in flash_map.items():
             if pd.notna(val):
                 new_rows.append({
                     "target_quarter": target_quarter,
-                    "nowcast_month": flash,
+                    "nowcast_month": m,
                     "prediction": val * 100
                 })
 
@@ -76,7 +87,7 @@ def overwrite_next_quarter_flashes_123_with_live(df_evolution, full_data, live_n
         return df_evolution
 
     except Exception as e:
-        print(f"Warning: could not overwrite bridge evolution flashes 1-3 with live values: {e}")
+        print(f"Warning: could not overwrite next quarter with live bridge values: {e}")
         return df_evolution
     
 
@@ -216,7 +227,9 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
     df_evolution = pd.DataFrame(results)
 
     # overwrite only 2026Q1 flash 1-3 with live_nowcast_results.csv; keep flash 4 from this script
-    df_evolution = overwrite_next_quarter_flashes_123_with_live(
+    df_evolution = pd.DataFrame(results)
+
+    df_evolution = overwrite_next_quarter_with_live_bridge(
         df_evolution,
         full_data,
         target_col=target_col
@@ -227,6 +240,7 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
         print(f"\n✅ Successfully exported accurate evolution data to {output_path}")
 
     return df_evolution
+
 
 # ==========================================
 # EXECUTION BLOCK
@@ -288,3 +302,4 @@ if __name__ == "__main__":
         target_col="GDP_growth",
         min_train_size=20
     )
+
