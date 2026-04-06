@@ -14,63 +14,147 @@ from models.ar_indicator import fit_ar_models, fill_ragged_edge
 from models.flash_nowcast import _make_flash_monthly_panel, _build_flash_predictor_row
 from src.data_preprocessing import aggregate_to_quarterly
 
+
+def overwrite_next_quarter_flashes_123_with_live(df_evolution, full_data, live_nowcast_path=None, target_col="GDP_growth"):
+    """
+    For the next quarter after the last actual GDP quarter (e.g. 2026Q1),
+    overwrite only flashes 1, 2, 3 using live_nowcast_results.csv.
+    Keep flash 4 from the bridge evolution calculation.
+    """
+    if live_nowcast_path is None:
+        live_nowcast_path = ROOT_DIR / "data" / "live_nowcast_results.csv"
+
+    try:
+        live_df = pd.read_csv(live_nowcast_path)
+
+        if live_df.empty or "quarter" not in live_df.columns:
+            return df_evolution
+
+        hist_quarters = full_data.index[full_data[target_col].notna()]
+        if len(hist_quarters) == 0:
+            return df_evolution
+
+        target_quarter_period = hist_quarters.max() + 1
+        target_quarter = str(target_quarter_period).replace("Q", " Q")
+        target_quarter_clean = str(target_quarter_period)
+
+        live_df["quarter_clean"] = live_df["quarter"].astype(str).str.replace(" ", "", regex=False)
+        live_match = live_df.loc[live_df["quarter_clean"] == target_quarter_clean]
+
+        if live_match.empty:
+            return df_evolution
+
+        live_row = live_match.iloc[0]
+
+        flash_map = {
+            1: live_row.get("bridge_flash1", np.nan),
+            2: live_row.get("bridge_flash2", np.nan),
+            3: live_row.get("bridge_flash3", np.nan),
+        }
+
+        # remove only flash 1/2/3 rows for that quarter
+        mask_remove = (
+            (df_evolution["target_quarter"] == target_quarter) &
+            (df_evolution["nowcast_month"].isin([1, 2, 3]))
+        )
+        df_evolution = df_evolution.loc[~mask_remove].copy()
+
+        # append live flash 1/2/3 rows
+        new_rows = []
+        for flash, val in flash_map.items():
+            if pd.notna(val):
+                new_rows.append({
+                    "target_quarter": target_quarter,
+                    "nowcast_month": flash,
+                    "prediction": val * 100
+                })
+
+        if new_rows:
+            df_evolution = pd.concat([df_evolution, pd.DataFrame(new_rows)], ignore_index=True)
+
+        df_evolution = df_evolution.sort_values(["target_quarter", "nowcast_month"]).reset_index(drop=True)
+        return df_evolution
+
+    except Exception as e:
+        print(f"Warning: could not overwrite bridge evolution flashes 1-3 with live values: {e}")
+        return df_evolution
+    
+
+
 def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None, target_col='GDP_growth', min_train_size=20):
     if output_path is None:
         output_path = ROOT_DIR / "data" / "bridge_evolution.csv"
 
     results = []
-    
-    # 1. Prepare full dataset with the correct lags and dummies
+
     full_data = data.copy()
     full_data["GDP_growth_lag1"] = full_data[target_col].shift(1)
     full_data["GDP_growth_lag2"] = full_data[target_col].shift(2)
+
     if "covid_dummy" not in full_data.columns:
         full_data["covid_dummy"] = 0
 
     all_predictors = selected_names + ["GDP_growth_lag1", "GDP_growth_lag2", "covid_dummy"]
 
-    # --- ULTIMATE BUGFIX: Pad md_trans perfectly from min to max date ---
     if not md_trans.empty:
         max_quarter = full_data.index.max()
         if pd.notna(max_quarter):
-            full_idx = pd.date_range(start=md_trans.index.min(), end=max_quarter.end_time, freq='MS')
+            full_idx = pd.date_range(
+                start=md_trans.index.min(),
+                end=max_quarter.end_time,
+                freq="MS"
+            )
             md_trans = md_trans.reindex(full_idx)
+
+    hist_quarters = full_data.index[full_data[target_col].notna()]
+    last_actual_quarter = hist_quarters.max() if len(hist_quarters) > 0 else None
+    next_live_quarter = last_actual_quarter + 1 if last_actual_quarter is not None else None
+
+    latest_month = md_trans.dropna(how="all").index.max() if not md_trans.empty else None
 
     print("Starting rigorous historical flash simulation... This may take a minute or two.")
 
     for i in range(min_train_size, len(full_data)):
         target_quarter = full_data.index[i]
         target_q_str = str(target_quarter).replace("Q", " Q")
-        
-        # --- NEW LOGICAL BOUNDARY ---
-        # If FRED hasn't released the actual GDP for this quarter yet, skip the historical simulation!
-        if pd.isna(full_data.loc[target_quarter, target_col]):
+
+        if pd.isna(full_data.loc[target_quarter, target_col]) and target_quarter != next_live_quarter:
             print(f"  [-] Skipping {target_q_str}: No Actual GDP data released by FRED yet.")
             continue
-        
-        # Training data strictly UP TO the previous quarter
+
         train_data = full_data.iloc[:i].copy().dropna(subset=[target_col])
-        hist_md_end = target_quarter.start_time - pd.Timedelta(days=1)
-        train_md = md_trans.loc[:hist_md_end].copy()
-        
+
         try:
-            # 2. Train the Models
             bridge_model, _ = fit_bridge_model(train_data, selected_names, target_col=target_col)
-            ar_models = fit_ar_models(train_md, selected_names)
         except Exception as e:
-            print(f"  [X] Skipped {target_q_str} entirely: Model training failed ({e})")
+            print(f"  [X] Skipped {target_q_str} entirely: Bridge model training failed ({e})")
             continue
 
-        # 3. Simulate Flash 1, Flash 2, and Flash 3 independently
-        for flash in [1, 2, 3]:
+        quarter_months = pd.date_range(start=target_quarter.start_time, periods=3, freq="MS")
+
+        if target_quarter != next_live_quarter:
+            flashes_to_run = [1, 2, 3]
+        else:
+            flashes_to_run = []
+            if latest_month is not None:
+                for flash, month in enumerate(quarter_months, start=1):
+                    if month <= latest_month:
+                        flashes_to_run.append(flash)
+
+        # Flash 1-3
+        for flash in flashes_to_run:
             try:
-                md_flash = _make_flash_monthly_panel(md_trans.copy(), target_quarter, flash, selected_names)
+                flash_cutoff = quarter_months[flash - 1]
+                md_observed = md_trans.loc[:flash_cutoff, selected_names].copy()
+                ar_models = fit_ar_models(md_observed, selected_names)
+
+                md_flash = _make_flash_monthly_panel(md_trans, target_quarter, flash, selected_names)
                 md_filled = fill_ragged_edge(md_flash, ar_models, selected_names)
                 monthly_q_filled = aggregate_to_quarterly(md_filled)
-                
+
                 if not isinstance(monthly_q_filled.index, pd.PeriodIndex):
-                    monthly_q_filled.index = monthly_q_filled.index.to_period('Q')
-                
+                    monthly_q_filled.index = monthly_q_filled.index.to_period("Q")
+
                 x_forecast = _build_flash_predictor_row(
                     monthly_q_filled=monthly_q_filled,
                     data=full_data,
@@ -78,49 +162,70 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
                     selected=selected_names,
                     target_col=target_col
                 )
-                
+
                 if x_forecast is None or x_forecast.empty:
                     print(f"  [!] Skipped {target_q_str} Flash {flash}: Not enough data yet.")
                     continue
-                
+
                 x_forecast["GDP_growth_lag1"] = full_data.loc[target_quarter - 1, target_col]
                 x_forecast["GDP_growth_lag2"] = full_data.loc[target_quarter - 2, target_col]
                 x_forecast["covid_dummy"] = full_data.loc[target_quarter, "covid_dummy"]
-                
-                x_forecast = sm.add_constant(x_forecast, has_constant='add')
+
+                x_forecast = sm.add_constant(x_forecast, has_constant="add")
                 x_forecast = x_forecast.reindex(columns=bridge_model.model.exog_names)
-                
+
                 if x_forecast.isna().any().any():
                     missing_cols = x_forecast.columns[x_forecast.isna().any()].tolist()
                     print(f"  [!] Skipped {target_q_str} Flash {flash} due to missing data: {missing_cols}")
                     continue
-                    
+
                 pred = float(np.squeeze(bridge_model.predict(x_forecast).values))
-                results.append({"target_quarter": target_q_str, "nowcast_month": flash, "prediction": pred})
-                
+                results.append({
+                    "target_quarter": target_q_str,
+                    "nowcast_month": flash,
+                    "prediction": pred
+                })
+
             except Exception as e:
                 print(f"  [X] CRITICAL ERROR on {target_q_str} Flash {flash}: {e}")
-                
-        # 4. "Month After" (Flash 4) - Protected in its own block!
+
+        # Flash 4 / month after third month
         try:
             x_final = full_data.loc[[target_quarter], all_predictors].copy()
+            x_final["GDP_growth_lag1"] = full_data.loc[target_quarter - 1, target_col]
+            x_final["GDP_growth_lag2"] = full_data.loc[target_quarter - 2, target_col]
+            x_final["covid_dummy"] = full_data.loc[target_quarter, "covid_dummy"]
+
             x_final = sm.add_constant(x_final, has_constant="add")
             x_final = x_final.reindex(columns=bridge_model.model.exog_names)
-            
+
             if not x_final.isna().any().any():
                 final_pred = float(np.squeeze(bridge_model.predict(x_final).values))
-                results.append({"target_quarter": target_q_str, "nowcast_month": 4, "prediction": final_pred})
+                results.append({
+                    "target_quarter": target_q_str,
+                    "nowcast_month": 4,
+                    "prediction": final_pred
+                })
             else:
                 missing_cols = x_final.columns[x_final.isna().any()].tolist()
                 print(f"  [!] Skipped {target_q_str} Flash 4 due to missing data: {missing_cols}")
+
         except Exception as e:
             print(f"  [X] CRITICAL ERROR on {target_q_str} Flash 4: {e}")
 
     df_evolution = pd.DataFrame(results)
+
+    # overwrite only 2026Q1 flash 1-3 with live_nowcast_results.csv; keep flash 4 from this script
+    df_evolution = overwrite_next_quarter_flashes_123_with_live(
+        df_evolution,
+        full_data,
+        target_col=target_col
+    )
+
     if output_path is not None:
         df_evolution.to_csv(output_path, index=False)
         print(f"\n✅ Successfully exported accurate evolution data to {output_path}")
-        
+
     return df_evolution
 
 # ==========================================

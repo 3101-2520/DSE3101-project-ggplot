@@ -23,70 +23,116 @@ def load_model_csv(filename):
         return df[p_col]
     except Exception:
         return pd.Series(dtype=float)
+    
+@st.cache_data
+def load_live_nowcast_csv():
+    """Loads live_nowcast_results.csv and formats the quarter index."""
+    try:
+        csv_path = Path(__file__).resolve().parents[2] / "data" / "live_nowcast_results.csv"
+        df = pd.read_csv(csv_path)
+
+        clean_quarters = df["quarter"].astype(str).str.replace(" ", "", regex=False)
+        df["quarter"] = pd.PeriodIndex(clean_quarters, freq="Q").astype(str).str.replace("Q", " Q")
+        df.set_index("quarter", inplace=True)
+
+        return df
+    except Exception:
+        return pd.DataFrame()
+    
+def overwrite_last_row_with_live(history_series, live_df, live_col):
+    """
+    Replace only the final row of the history series with the corresponding
+    value from live_nowcast_results.csv, if that quarter exists there.
+    """
+    if history_series.empty or live_df.empty or live_col not in live_df.columns:
+        return history_series
+
+    aligned = history_series.copy()
+    last_hist_q = aligned.index[-1]
+
+    if last_hist_q in live_df.index and pd.notna(live_df.loc[last_hist_q, live_col]):
+        aligned.loc[last_hist_q] = live_df.loc[last_hist_q, live_col] * 100
+
+    return aligned
+    
+def get_prediction_max_period():
+    """Return the latest quarter available across AR, ADL, and Bridge prediction CSVs."""
+    series_list = [
+        load_model_csv("historical_gdp_ar_predictions.csv"),
+        load_model_csv("historical_gdp_adl_predictions.csv"),
+        load_model_csv("historical_gdp_bridge_predictions.csv"),
+    ]
+
+    max_periods = []
+    for s in series_list:
+        if not s.empty:
+            clean_idx = s.index.astype(str).str.replace(" ", "", regex=False)
+            periods = pd.PeriodIndex(clean_idx, freq="Q")
+            max_periods.append(periods.max())
+
+    if max_periods:
+        return max(max_periods)
+
+    return None
 
 def get_sidebar_controls(gdp_data):
     """Call this inside st.sidebar to centralize controls"""
-    # Define the max allowed period as current quarter minus 2
-    max_allowed_period = pd.Timestamp.now().to_period("Q") - 2
-    
-    default_year = max_allowed_period.year
-    default_q = f"Q{max_allowed_period.quarter}"
+    prediction_max_period = get_prediction_max_period()
 
-    # Get min/max bounds from your data, capping the maximum year at our target threshold
+    if prediction_max_period is None:
+        prediction_max_period = gdp_data.index.max()
+
+    default_year = prediction_max_period.year
+    default_q = f"Q{prediction_max_period.quarter}"
+
     min_year = int(gdp_data.index.min().year)
-    max_year = int(min(gdp_data.index.max().year, max_allowed_period.year))
-    
-    # Create TWO columns for the first row
+    max_year = int(prediction_max_period.year)
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        # Generate a list of valid years and find the default index
         year_options = list(range(min_year, max_year + 1))
         default_year_index = year_options.index(default_year) if default_year in year_options else len(year_options) - 1
-        
+
         year = st.selectbox(
-            "Year", 
-            options=year_options, 
+            "Year",
+            options=year_options,
             index=default_year_index
         )
-    
-    # Define the base options
+
     q_options = ["Q1", "Q2", "Q3", "Q4"]
-    
-    # If the user selects the max allowed year, restrict the quarter options so they can't select past current_quarter - 2
-    if year == max_allowed_period.year:
-        q_options = [f"Q{i}" for i in range(1, max_allowed_period.quarter + 1)]
-    
-    # Find index for our default, safely defaulting to the end of the list if missing
+
+    if year == prediction_max_period.year:
+        q_options = [f"Q{i}" for i in range(1, prediction_max_period.quarter + 1)]
+
     default_q_index = q_options.index(default_q) if default_q in q_options else len(q_options) - 1
-    
+
     with col2:
         q = st.selectbox(
-            "Quarter", 
-            options=q_options, 
-            index=default_q_index 
+            "Quarter",
+            options=q_options,
+            index=default_q_index
         )
-    
-    # Placed entirely outside the "with" blocks so it drops to the next row
-    # Generate a list of odd numbers (step=2) for the window options
-    window_options = list(range(3, 23, 2)) # [3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
+
+    window_options = list(range(3, 23, 2))
     default_window_index = window_options.index(7) if 7 in window_options else 2
-    
+
     window = st.selectbox(
-        "Display Qtrs", 
-        options=window_options, 
+        "Display Qtrs",
+        options=window_options,
         index=default_window_index
     )
-    
+
     return year, q, window
 
 def render(gdp_data, year, q, window_size):
     """Main render function receiving parameters from sidebar"""
     nowcasts_df = get_historical_nowcasts()
+    live_nowcasts_df = load_live_nowcast_csv()
     
-    # Set the maximum allowed date threshold
-    current_q_period = pd.Timestamp.now().to_period("Q")
-    max_allowed_period = current_q_period - 2
+    prediction_max_period = get_prediction_max_period()
+    if prediction_max_period is None:
+        prediction_max_period = gdp_data.index.max()
     
     # Calculate time window
     try:
@@ -95,14 +141,10 @@ def render(gdp_data, year, q, window_size):
         st.error(f"Invalid period format: {year} {q}")
         return
 
-    # Check against gdp_data index correctly
-    if selected_period not in gdp_data.index:
-        st.warning(f"Note: {year} {q} has no actual GDP data yet. Displaying available estimates.")
-
 
     # Build a window that always tries to show exactly window_size quarters
-    min_period = min(gdp_data.index.min(), max_allowed_period)
-    max_period = max_allowed_period
+    min_period = gdp_data.index.min()
+    max_period = prediction_max_period
 
     half_window = window_size // 2
 
@@ -146,6 +188,23 @@ def render(gdp_data, year, q, window_size):
     ar_preds = load_model_csv("historical_gdp_ar_predictions.csv") if "AR Model" in active_models else pd.Series(dtype=float)
     adl_preds = load_model_csv("historical_gdp_adl_predictions.csv") if "ADL Model" in active_models else pd.Series(dtype=float)
     bridge_preds = load_model_csv("historical_gdp_bridge_predictions.csv") if "Bridge Model" in active_models else pd.Series(dtype=float)
+
+    # Overwrite only the last historical row with live_nowcast_results.csv values
+    if "AR Model" in active_models and not ar_preds.empty:
+        ar_preds = overwrite_last_row_with_live(ar_preds, live_nowcasts_df, "ar_benchmark")
+
+    if "ADL Model" in active_models and not adl_preds.empty:
+        adl_preds = overwrite_last_row_with_live(adl_preds, live_nowcasts_df, "adl_benchmark")
+
+    if "Bridge Model" in active_models and not bridge_preds.empty:
+        bridge_live_df = live_nowcasts_df.copy()
+
+        if not bridge_live_df.empty:
+            bridge_live_df["bridge_live"] = bridge_live_df["bridge_flash3"]
+            bridge_live_df["bridge_live"] = bridge_live_df["bridge_live"].fillna(bridge_live_df["bridge_flash2"])
+            bridge_live_df["bridge_live"] = bridge_live_df["bridge_live"].fillna(bridge_live_df["bridge_flash1"])
+
+            bridge_preds = overwrite_last_row_with_live(bridge_preds, bridge_live_df, "bridge_live")
 
     # PLOTTING
     fig = go.Figure()
