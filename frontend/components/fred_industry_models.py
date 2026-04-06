@@ -34,45 +34,32 @@ def fetch_fred_series(series_id: str, api_key: str) -> pd.Series:
 def get_historical_nowcasts() -> pd.DataFrame:
     try:
         api_key = st.secrets["FRED_API_KEY"]
-        
-        # Added GDPC1 for Real GDP
+
         series_map = {
             "Real GDP (Actual)": "GDPC1",
             "Atlanta Fed Forecast": "GDPNOW",
             "St. Louis Fed Forecast": "STLENI",
         }
 
-        resampled_dict = {}
+        series_dict = {}
 
         for label, series_id in series_map.items():
             s = fetch_fred_series(series_id, api_key)
-            if s.empty: continue
+            if s.empty:
+                continue
 
-            # --- CUSTOM LOGIC FOR ACTUAL GDP ---
             if series_id == "GDPC1":
-                # Convert absolute levels to Quarter-over-Quarter Annualized Rate
-                # This makes it comparable to the Fed forecasts (e.g., 2.5%)
                 s = s.pct_change()
-                s = ((1 + s)**4 - 1) * 100 
-            # 2. Get the ACTUAL latest value (the 2.0%)
-            live_val = s.iloc[-1] # This is the 2.0
+                s = ((1 + s) ** 4 - 1) * 100
 
-            # Create the resampled frame
-            s_q = s.resample("QE").last()
+            # no resample, no forced reassignment
+            series_dict[label] = s
 
-            # FORCE the current quarter to be the live_val
-            # This is the most important line to stop the 4.2 leak!
-            current_q_end = pd.Timestamp.now().to_period("Q").to_timestamp("Q") + pd.offsets.QuarterEnd(0)
-            s_q[current_q_end] = live_val
-
-            resampled_dict[label] = s_q
-
-        if not resampled_dict:
+        if not series_dict:
             return pd.DataFrame()
 
-        combined_df = pd.DataFrame(resampled_dict).sort_index()
+        combined_df = pd.DataFrame(series_dict).sort_index()
 
-        # Format index to "2025 Q4"
         combined_df.index = (
             combined_df.index.to_period("Q")
             .astype(str)

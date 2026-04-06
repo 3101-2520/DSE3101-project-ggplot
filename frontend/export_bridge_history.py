@@ -3,9 +3,9 @@ import sys
 import pandas as pd
 import statsmodels.api as sm
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
 from models.bridge_model import fit_bridge_model
 
@@ -17,7 +17,7 @@ def build_historical_bridge_csv(
     min_train_size=20,
 ):
     if output_path is None:
-        output_path = ROOT / "data" / "historical_gdp_bridge_predictions.csv"
+        output_path = ROOT_DIR / "data" / "historical_gdp_bridge_predictions.csv"
 
     rows = []
 

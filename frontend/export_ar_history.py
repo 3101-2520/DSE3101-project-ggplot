@@ -2,9 +2,9 @@ from pathlib import Path
 import pandas as pd
 import sys
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
 from models.ar_benchmark import fit_ar_benchmark
 
@@ -16,7 +16,7 @@ def build_historical_ar_csv(
     min_train_size=20,
 ):
     if output_path is None:
-        output_path = ROOT / "data" / "historical_gdp_ar_predictions.csv"
+        output_path = ROOT_DIR / "data" / "historical_gdp_ar_predictions.csv"
 
     rows = []
 

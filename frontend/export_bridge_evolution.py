@@ -5,9 +5,9 @@ from pathlib import Path
 import sys
 
 # Ensure the script can find your src and models folders
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.append(str(ROOT))
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
 from models.bridge_model import fit_bridge_model
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
@@ -16,7 +16,7 @@ from src.data_preprocessing import aggregate_to_quarterly
 
 def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None, target_col='GDP_growth', min_train_size=20):
     if output_path is None:
-        output_path = ROOT / "data" / "bridge_evolution.csv"
+        output_path = ROOT_DIR / "data" / "bridge_evolution.csv"
 
     results = []
     
@@ -129,10 +129,10 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
 if __name__ == "__main__":
     print("Loading LIVE datasets for Evolution Chart...")
 
-    monthly_path = ROOT / "data" / "live_api_monthly.csv"
-    gdp_path = ROOT / "data" / "live_api_quarterly_gdp.csv"
-    md_reference_path = ROOT / "data" / "2026-02-MD.csv" 
-    output_path = ROOT / "data" / "bridge_evolution.csv"
+    monthly_path = ROOT_DIR / "data" / "live_api_monthly.csv"
+    gdp_path = ROOT_DIR / "data" / "live_api_quarterly_gdp.csv"
+    md_reference_path = ROOT_DIR / "data" / "2026-02-MD.csv" 
+    output_path = ROOT_DIR / "data" / "bridge_evolution.csv"
 
     monthly_raw = pd.read_csv(monthly_path, parse_dates=True, index_col=0)
     md_meta = pd.read_csv(md_reference_path, nrows=1)

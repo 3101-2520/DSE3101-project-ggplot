@@ -39,9 +39,9 @@ from src.data_preprocessing import (
     merge_data,
     transform_series
 )
-from export_ar_history import build_historical_ar_csv
-from export_adl_history import build_historical_adl_csv
-from export_bridge_history import build_historical_bridge_csv
+from frontend.export_ar_history import build_historical_ar_csv
+from frontend.export_adl_history import build_historical_adl_csv
+from frontend.export_bridge_history import build_historical_bridge_csv
 from frontend.components.fred_industry_models import annualize_gdp_growth
 
 
@@ -442,7 +442,7 @@ if refresh_clicked:
         try:
             api_script = ROOT_DIR / "src" / "api_preprocessing.py"
             model_script = ROOT_DIR / "src" / "live_nowcast.py"
-            evo_script = ROOT_DIR / "export_bridge_evolution.py" 
+            evo_script = ROOT_DIR / "frontend" / "export_bridge_evolution.py" 
             
             #subprocess.run([sys.executable, str(api_script)], check=True)
             #subprocess.run([sys.executable, str(model_script)], check=True)
@@ -465,7 +465,7 @@ if refresh_clicked:
 if page == "Live Statistics":
     live_df = load_live_nowcast_df()
     quarter, bridge_val = get_latest_bridge_value(live_df)
-    atl_val, stl_val = get_fred_data(quarter)
+    atl_val, atl_quarter, stl_val, stl_quarter = get_fred_data()
 
     col1, col2, col3, col4, col5, col6 = st.columns([1.2, 1, 1, 1, 1, 1])
 
