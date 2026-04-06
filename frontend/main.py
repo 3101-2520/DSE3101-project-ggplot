@@ -18,10 +18,9 @@ st.markdown(
 st.markdown(
     """
     <style>
-    /* Target the main container that holds everything */
     .block-container {
-        padding-top: 1rem !important; /* Reduces the gap at the top */
-        padding-bottom: 0rem !important; /* Reduces the gap at the bottom */
+        padding-top: 1rem !important; 
+        padding-bottom: 0rem !important; 
     }
     </style>
     """,
@@ -57,11 +56,9 @@ def load_and_transform_live_monthly(monthly_path, md_reference_path):
     for col in monthly_raw.columns:
         if col not in tcodes:
             continue
-
         code = tcodes[col]
         if pd.isna(code):
             continue
-
         try:
             s = transform_series(monthly_raw[col].astype(float), int(code))
             s.name = col
@@ -70,18 +67,15 @@ def load_and_transform_live_monthly(monthly_path, md_reference_path):
             continue
 
     MD_trans = pd.concat(transformed_list, axis=1).sort_index()
-
     vars_to_drop = ['ACOGNO', 'UMCSENTx', 'TWEXAFEGSMTHx', 'ANDENOx', 'VIXCLSx']
     MD_trans = MD_trans.drop(columns=vars_to_drop, errors='ignore')
 
     return MD_trans
 
-
 def load_live_quarterly_gdp_annualized(gdp_path):
     gdp_raw = pd.read_csv(gdp_path, parse_dates=True, index_col=0).squeeze()
     gdp_raw.index = pd.to_datetime(gdp_raw.index)
     gdp_raw.index = gdp_raw.index.to_period("Q")
-
     GDP_growth = (np.log(gdp_raw).diff() * 400).rename("GDP_growth")
     return GDP_growth
 
@@ -106,21 +100,11 @@ def prepare_data():
     if not isinstance(monthly_q.index, pd.PeriodIndex):
         monthly_q.index = monthly_q.index.to_period("Q")
 
-    # keep a few columns needed for ADL + bridge
     required_cols = [
-    "DPCERA3M086SBEA",
-    "UEMP15T26",
-    "DMANEMP",
-    "IPDMAT",
-    "W875RX1",
-    "UNRATE",
-    "BAA",
-    "AAA",
-    "HOUST",
-    "PAYEMS",
-    "PERMITNE",
-    "HWIURATIO",
-]
+        "DPCERA3M086SBEA", "UEMP15T26", "DMANEMP", "IPDMAT",
+        "W875RX1", "UNRATE", "BAA", "AAA", "HOUST", "PAYEMS",
+        "PERMITNE", "HWIURATIO",
+    ]
     available_cols = [c for c in required_cols if c in monthly_q.columns]
     monthly_q = monthly_q[available_cols].copy()
 
@@ -149,7 +133,6 @@ def prepare_ar_history(gdp_series):
         min_train_size=20,
     )
 
-
 @st.cache_data
 def prepare_adl_history(data):
     output_path = ROOT_DIR / "data" / "historical_gdp_adl_predictions.csv"
@@ -159,7 +142,6 @@ def prepare_adl_history(data):
         target_col="GDP_growth",
         min_train_size=20,
     )
-
 
 @st.cache_data
 def prepare_bridge_history(data, selected):
@@ -172,72 +154,58 @@ def prepare_bridge_history(data, selected):
         min_train_size=20,
     )
 
-
 ar_history_df = prepare_ar_history(gdp_data)
 adl_history_df = prepare_adl_history(data)
 
 bridge_selected_variables = [
-    'DPCERA3M086SBEA', 
-    'UEMP15T26', 
-    'DMANEMP', 
-    'IPDMAT', 
-    'W875RX1', 
-    'UNRATE']
+    'DPCERA3M086SBEA', 'UEMP15T26', 'DMANEMP', 
+    'IPDMAT', 'W875RX1', 'UNRATE'
+]
 
 bridge_history_df = prepare_bridge_history(data, bridge_selected_variables)
 
 # --- 8. COMPONENT IMPORTS ---
 try:
     from frontend.components import (
-        config_panel,
-        live_metric,
-        biz_cycle,
-        history_chart,
-        intra_quarter_chart,
-        live_graph,
-        fred_industry_models,
-        fred_nowcast
+        config_panel, live_metric, biz_cycle, history_chart,
+        intra_quarter_chart, live_graph, fred_industry_models, fred_nowcast
     )
 except ModuleNotFoundError:
     from components import (
-        config_panel,
-        live_metric,
-        biz_cycle,
-        history_chart,
-        intra_quarter_chart,
-        live_graph,
-        fred_industry_models,
-        fred_nowcast
+        config_panel, live_metric, biz_cycle, history_chart,
+        intra_quarter_chart, live_graph, fred_industry_models, fred_nowcast
     )
+
 @st.dialog("Dashboard Update")
 def success_popup():
     st.success("✅ Nowcast dashboard updated successfully!")
     st.markdown("The latest FRED data has been downloaded and the GDP models have been re-run.")
 
+
 # --- 9. PAGE STYLING ---
 st.markdown("""
     <style>
     @keyframes pulse-glow {
-        0% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
-        50% { opacity: 0.6; text-shadow: 0 0 20px #00ff00; }
-        100% { opacity: 1; text-shadow: 0 0 5px #00ff00; }
+        0% { opacity: 1; text-shadow: 0 0 5px rgba(0, 168, 107, 0.4); }
+        50% { opacity: 0.7; text-shadow: 0 0 15px rgba(0, 168, 107, 0.2); }
+        100% { opacity: 1; text-shadow: 0 0 5px rgba(0, 168, 107, 0.4); }
     }
 
     @keyframes pulse-green {
-        0% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
-        50% { opacity: 0.5; text-shadow: 0 0 20px #00FF00; }
-        100% { opacity: 1; text-shadow: 0 0 5px #00FF00; }
+        0% { opacity: 1; color: #00A86B; text-shadow: 0 0 2px rgba(0, 255, 0, 0.2); }
+        50% { opacity: 0.6; color: #00D186; text-shadow: 0 0 10px rgba(0, 255, 0, 0.1); }
+        100% { opacity: 1; color: #00A86B; text-shadow: 0 0 2px rgba(0, 255, 0, 0.2); }
     }
 
     @keyframes pulse-red {
-        0% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
-        50% { opacity: 0.5; text-shadow: 0 0 20px #FF3333; }
-        100% { opacity: 1; text-shadow: 0 0 5px #FF3333; }
+        0% { opacity: 1; color: #E74C3C; text-shadow: 0 0 2px rgba(255, 0, 0, 0.2); }
+        50% { opacity: 0.6; color: #FF5C5C; text-shadow: 0 0 10px rgba(255, 0, 0, 0.1); }
+        100% { opacity: 1; color: #E74C3C; text-shadow: 0 0 2px rgba(255, 0, 0, 0.2); }
     }
 
     .flash-text {
-        animation: pulse-glow 2s infinite;
-        color: #00ff00;
+        animation: pulse-glow 2s infinite; 
+        color: #00A86B;
         font-weight: bold;
         font-size: 2rem;
         text-align: center;
@@ -273,18 +241,10 @@ st.markdown("""
         text-align: center;
     }
 
-    /* GLOBAL & MAIN AREA */
-    .stApp {
-        background-color: #0e1117;
-        color: white;
-    }
+    .stApp { background-color: #0e1117; color: white; }
     
-    /* Hides the collapse button inside the sidebar */
-    [data-testid="stSidebarCollapseButton"] {
-        display: none !important;
-    }
+    [data-testid="stSidebarCollapseButton"] { display: none !important; }
 
-    /* METRICS & CARDS */
     [data-testid="stMetric"] {
         background-color: #1e2127;
         padding: 15px;
@@ -292,7 +252,6 @@ st.markdown("""
         border: 1px solid #30363d;
     }
 
-    /* LARGE REFRESH BUTTON */
     div.stButton > button {
         height: 60px;
         background-color: #1e2127;
@@ -310,31 +269,33 @@ st.markdown("""
         background-color: #1e2127;
     }
 
-    /* DISABLE LIGHT MODE TOGGLE */
     div[role="dialog"] [data-testid="stWidgetLabel"] + div[role="radiogroup"] {
         display: none !important;
     }
     
-    /* MISC CLEANUP */
     hr {
         border-top: 1px solid #30363d !important;
         margin-top: 0rem !important;
         margin-bottom: 1rem !important;
     }
 
-    footer {
-        visibility: hidden;
-    }
+    footer { visibility: hidden; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 10. HEADER ---
+
+# --- 10. HEADER & GLOBAL REFRESH LOGIC ---
+if "is_refreshing" not in st.session_state:
+    st.session_state["is_refreshing"] = False
+
 def get_image_base64(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
+
 current_dir = Path(__file__).parent
 image_path = current_dir / "assets" / "Team_logo.png"
 img_base64 = get_image_base64(image_path) if image_path.exists() else ""
+
 col_title, col_status = st.columns([4, 1.4])
 
 with col_title:
@@ -342,7 +303,6 @@ with col_title:
         '<h1 style="margin-bottom: 0;"><i class="bi bi-activity" style="color: #5DADE2; margin-right: 12px;"></i>GDP Nowcast Terminal</h1>',
         unsafe_allow_html=True
     )
-
     st.markdown(
         f"<div style='color: #a1a1aa; font-size: 15px; margin-top: 5px;'>"
         f"DSE3101 &nbsp;|&nbsp; "
@@ -368,18 +328,56 @@ with col_status:
 
     with btn_col:
         st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+        
+        # ACTIVE STATE VS DISABLED SPINNER STATE
+        if not st.session_state["is_refreshing"]:
+            if st.button("⟳ Refresh Data", use_container_width=True, key="refresh_btn_header", help="Note: The data pipeline takes approximately 2 minutes to pull from FRED and re-run the models."):
+                st.session_state["is_refreshing"] = True
+                st.rerun() 
+        else:
+            with st.spinner("Pipeline running..."):
+                st.button("Processing...", use_container_width=True, disabled=True, key="refresh_btn_disabled")
 
-        refresh_clicked = st.button(
-            "⟳ Refresh data",
-            use_container_width=True,
-            key="refresh_btn_header"
-        )
 st.divider()
+
+# --- PIPELINE EXECUTION ---
+if st.session_state.get("is_refreshing", False):
+    st.toast("Starting data pipeline...", icon="🚀")
+    progress_bar = st.progress(0, text="Step 1 of 3: Accessing FRED API... ⏳")
+    
+    try:
+        api_script = ROOT_DIR / "src" / "api_preprocessing.py"
+        model_script = ROOT_DIR / "src" / "live_nowcast.py"
+        evo_script = ROOT_DIR / "frontend" / "export_bridge_evolution.py" 
+
+        env = os.environ.copy()
+        env["FRED_API_KEY"] = st.secrets["FRED_API_KEY"]
+
+        subprocess.run([sys.executable, str(api_script)], check=True, env=env)
+        
+        progress_bar.progress(33, text="Step 2 of 3: Re-running GDP Models... ⚙️")
+        subprocess.run([sys.executable, str(model_script)], check=True, env=env)
+        
+        progress_bar.progress(66, text="Step 3 of 3: Exporting Bridge Evolution... 📊")
+        subprocess.run([sys.executable, str(evo_script)], check=True, env=env)
+        
+        progress_bar.progress(100, text="Update complete! Reloading terminal... ✅")
+        
+        st.session_state["is_refreshing"] = False
+        st.session_state["success_popup"] = True
+        st.cache_data.clear()
+        st.rerun()
+        
+    except Exception as e:
+        st.error(f"Error: {e}")
+        st.session_state["is_refreshing"] = False
+        if st.button("Acknowledge Error", key="ack_error_btn"):
+            st.rerun()
 
 # --- 11. SIDEBAR ---
 with st.sidebar:
     page = option_menu(
-        menu_title=None,  # Hides the title to keep it clean like the image
+        menu_title=None, 
         options=["Live Statistics", "Monthly Nowcast", "History Chart"],
         icons=["graph-up-arrow", "calendar4", "bar-chart-line"], 
         default_index=0,
@@ -390,11 +388,11 @@ with st.sidebar:
                 "font-size": "16px", 
                 "text-align": "left", 
                 "margin": "4px 0", 
-                "border-radius": "8px", # Gives that pill-shaped highlight
+                "border-radius": "8px", 
                 "--hover-color": "rgba(255, 255, 255, 0.05)"
             },
             "nav-link-selected": {
-                "background-color": "#4b5563", # Matches the dark grey highlight in your image
+                "background-color": "#4b5563", 
                 "font-weight": "bold"
             },
         }
@@ -402,15 +400,13 @@ with st.sidebar:
     
     st.divider()
     st.markdown(
-    '<h3><i class="bi bi-gear" style="margin-right: 8px; color: #a1a1aa;"></i>Configuration</h3>', 
-    unsafe_allow_html=True
-)
+        '<h3><i class="bi bi-gear" style="margin-right: 8px; color: #a1a1aa;"></i>Configuration</h3>', 
+        unsafe_allow_html=True
+    )
     
-    # Initialize variables to None BEFORE checking the page
     hist_params = None
     selected_quarter = None
     
-    # Conditional Sidebar Logic
     if page == "History Chart":
         hist_params = history_chart.get_sidebar_controls(gdp_data)
         config_panel.render() 
@@ -425,7 +421,7 @@ with st.sidebar:
 
 # --- TRIGGER DIALOG BEFORE CONTENT ---
 if st.session_state.get("success_popup", False):
-    st.session_state["success_popup"] = False  # Reset immediately
+    st.session_state["success_popup"] = False 
     success_popup()
 
 # --- 12. MAIN CONTENT AREA ---
@@ -435,33 +431,6 @@ from frontend.components.live_metric import (
     get_latest_bridge_value,
 )
 
-# --- GLOBAL REFRESH LOGIC (Moved outside the page tabs!) ---
-if refresh_clicked:
-    st.toast("Starting data pipeline...", icon="🚀")
-    with st.spinner("Accessing FRED API & Re-running Models..."):
-        try:
-            api_script = ROOT_DIR / "src" / "api_preprocessing.py"
-            model_script = ROOT_DIR / "src" / "live_nowcast.py"
-            evo_script = ROOT_DIR / "frontend" / "export_bridge_evolution.py" 
-            
-            #subprocess.run([sys.executable, str(api_script)], check=True)
-            #subprocess.run([sys.executable, str(model_script)], check=True)
-            #subprocess.run([sys.executable, str(evo_script)], check=True) 
-
-            env = os.environ.copy()
-            env["FRED_API_KEY"] = st.secrets["FRED_API_KEY"]
-
-            subprocess.run([sys.executable, str(api_script)], check=True, env=env)
-            subprocess.run([sys.executable, str(model_script)], check=True, env=env)
-            subprocess.run([sys.executable, str(evo_script)], check=True, env=env)
-            
-            st.session_state["success_popup"] = True
-            st.cache_data.clear()
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error: {e}")
-
-# --- PAGE ROUTING ---
 if page == "Live Statistics":
     live_df = load_live_nowcast_df()
     quarter, bridge_val = get_latest_bridge_value(live_df)
@@ -483,7 +452,6 @@ if page == "Live Statistics":
         render_fred_card("St. Louis Fed", stl_val, quarter)
 
     st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
-
     live_graph.render(show_50, show_80)
 
 elif page == "Monthly Nowcast":
@@ -492,7 +460,6 @@ elif page == "Monthly Nowcast":
 
 elif page == "History Chart":
     st.markdown("<br>", unsafe_allow_html=True)
-    
     if hist_params:
         history_chart.render(gdp_data, *hist_params)
     else:

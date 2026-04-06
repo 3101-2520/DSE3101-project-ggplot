@@ -57,13 +57,56 @@ def get_fred_data():
         print(f"Error fetching St. Louis nowcast: {e}")
 
     return atl_val, atl_quarter, stl_val, stl_quarter
+
+def get_fred_description(label):
+    """Returns definitions for external Fed nowcasting models."""
+    descriptions = {
+        "Atlanta GDPNow": "A running estimate of real GDP growth based on available economic data for the current measured quarter.",
+        "St. Louis Fed": "The St. Louis Fed's Economic News Index (STLENI), which tracks real-time economic conditions."
+    }
+    return descriptions.get(label, "External benchmark for GDP Nowcasting.")
     
 def render_fred_card(label, value, quarter):
     # Formats the raw API value safely (multiplier removed to prevent the 40% bug!)
     val_text = f"{value:.2f}%" if value is not None else "N/A"
+    tooltip_text = get_fred_description(label)
+    st.markdown("""
+    <style>
+    .card-container {
+        position: relative;
+        cursor: help;
+    }
+    .card-container .tooltiptext {
+        visibility: hidden;
+        width: 200px;
+        background-color: #30363d;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 10px;
+        position: absolute;
+        z-index: 100;
+        bottom: 110%; 
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 13px;
+        font-weight: 300; 
+        border: 1px solid #A0AAB5;
+        line-height: 1.4;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+    }
+    .card-container:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
+    # 3. Render Card
     st.markdown(f"""
-    <div style="
+    <div class="card-container" style="
         background-color: #1e2127;
         padding: 20px;
         border-radius: 12px;
@@ -75,9 +118,11 @@ def render_fred_card(label, value, quarter):
         justify-content: center;
         box-sizing: border-box;
     ">
+        <span class="tooltiptext">{tooltip_text}</span>
         <div style="
             color: #A0AAB5;
             font-size: 14px;
+            font-weight: bold; 
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -90,9 +135,9 @@ def render_fred_card(label, value, quarter):
             {label} ({quarter if quarter else 'N/A'})
         </div>
         <div style="
-            color: white;
+            color: #A0AAB5; 
             font-size: 28px;
-            font-weight: bold;
+            font-weight: bold; 
             line-height: 1;
         ">
             {val_text}

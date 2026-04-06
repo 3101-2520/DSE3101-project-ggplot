@@ -2,6 +2,16 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
+def get_cycle_description(label):
+    """Returns a brief definition for the business cycle tooltip."""
+    descriptions = {
+        "Recession": "Two or more consecutive quarters of negative GDP growth.",
+        "Contracting": "Current GDP growth is negative, indicating economic shrinkage.",
+        "Expansion": "GDP is growing and accelerating compared to the previous quarter.",
+        "Decelerating Growth": "GDP is still growing, but at a slower pace than the previous quarter.",
+        "-": "Insufficient data to determine current business cycle phase."
+    }
+    return descriptions.get(label, "Economic phase based on flash nowcasts and historical GDP.")
 
 def render(gdp_data):
     # 1. Fetch the Live Prediction directly from the CSV
@@ -18,6 +28,7 @@ def render(gdp_data):
         
         # Get the latest available flash
         current = None
+        label=""
         for flash in ['bridge_flash3', 'bridge_flash2', 'bridge_flash1']:
             if pd.notna(row.get(flash)):
                 current = row[flash] * mult
@@ -65,8 +76,43 @@ def render(gdp_data):
             pass 
 
     # 3. Display the card
+    tooltip_text = get_cycle_description(label)
+    st.markdown("""
+    <style>
+    .card-container {
+        position: relative;
+        cursor: help;
+    }
+    .card-container .tooltiptext {
+        visibility: hidden;
+        width: 220px;
+        background-color: #30363d;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 10px;
+        position: absolute;
+        z-index: 100;
+        bottom: 110%; 
+        left: 50%;
+        margin-left: -110px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 12px;
+        font-weight: 300;
+        border: 1px solid #A0AAB5;
+        line-height: 1.4;
+    }
+    .card-container:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # 3. Render the Card with the tooltip
     st.markdown(f"""
-    <div style="
+    <div class="card-container" style="
         background-color: #1e2127;
         padding: 20px;
         border-radius: 12px;
@@ -78,9 +124,11 @@ def render(gdp_data):
         justify-content: center;
         box-sizing: border-box;
     ">
+        <span class="tooltiptext">{tooltip_text}</span>
         <div style="
             color: #A0AAB5;
             font-size: 14px;
+            font-weight: bold; 
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -94,7 +142,7 @@ def render(gdp_data):
         </div>
         <div class="{flash_class}" style="
             color: {text_color};
-            font-size: 28px;
+            font-size: 24px; 
             font-weight: bold;
             line-height: 1;
         ">

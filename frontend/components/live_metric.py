@@ -76,7 +76,7 @@ def get_column_value_for_quarter(df, quarter, column_name):
     return quarter, None
 
 
-def render_model_card(title, quarter, value, height=120):
+def render_model_card(title, quarter, value, height=120, tooltip_text=""):
     value = scale_if_needed(value)
 
     # Default styling
@@ -99,22 +99,59 @@ def render_model_card(title, quarter, value, height=120):
         text_color = "#A0AAB5"
         flash_class = ""
 
-    st.markdown(f"""
-    <div style="
+    st.markdown("""
+    <style>
+    .card-container {
+        position: relative;
         background-color: #1e2127;
         padding: 20px;
         border-radius: 12px;
         text-align: center;
         border: 1px solid #30363d;
-        height: {height}px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         box-sizing: border-box;
-    ">
+        cursor: help; /* Changes cursor to a question mark on hover */
+    }
+
+    /* Tooltip text container */
+    .card-container .tooltiptext {
+        visibility: hidden;
+        width: 200px;
+        background-color: #30363d;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 8px;
+        position: absolute;
+        z-index: 100;
+        bottom: 105%; /* Position above the card */
+        left: 50%;
+        margin-left: -100px;
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 12px;
+        font-weight: 300;
+        border: 1px solid #A0AAB5;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Show tooltip on hover */
+    .card-container:hover .tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown(f"""
+    <div class="card-container" style="height: {height}px;">
+        <span class="tooltiptext">{tooltip_text}</span>
         <div style="
             color: #A0AAB5;
             font-size: 14px;
+            font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 8px;
@@ -151,18 +188,18 @@ def render_bridge_card():
     df = load_live_nowcast_df()
     ref_quarter = get_reference_quarter(df)
     quarter, value = get_bridge_value_for_quarter(df, ref_quarter)
-    render_model_card("Current Bridge Nowcast", quarter, value, height=120)
+    render_model_card("Current Bridge Nowcast", quarter, value, tooltip_text = "Bridge Model: Acts as a 'bridge' between high-frequency indicators and low-frequency indicators",height=120)
 
 
 def render_ar_card():
     df = load_live_nowcast_df()
     ref_quarter = get_reference_quarter(df)
     quarter, value = get_column_value_for_quarter(df, ref_quarter, "ar_benchmark")
-    render_model_card("Current AR Nowcast", quarter, value, height=120)
+    render_model_card("Current AR Nowcast", quarter, value, tooltip_text = "Autoregressive Model: Benchmark model that predicts based on past indicators", height=120)
 
 
 def render_adl_card():
     df = load_live_nowcast_df()
     ref_quarter = get_reference_quarter(df)
     quarter, value = get_column_value_for_quarter(df, ref_quarter, "adl_benchmark")
-    render_model_card("Current ADL Nowcast", quarter, value, height=120)
+    render_model_card("Current ADL Nowcast", quarter, value, tooltip_text= "Autoregressive Distributed Lag Model: Extension of AR Model to include past values of other explanatory variables", height=120)
