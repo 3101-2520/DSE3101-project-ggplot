@@ -6,7 +6,6 @@ import requests
 import certifi
 import os
 
-    
 @st.cache_data(ttl=3600)
 def get_fred_data():
     """
@@ -45,7 +44,7 @@ def get_fred_data():
         print(f"Error fetching Atlanta GDPNow: {e}")
 
     try:
-        # St. Louis: FRED is fine
+        # St. Louis: FRED
         api_key = os.environ.get("FRED_API_KEY")
         fred = Fred(api_key=api_key)
         stl_series = fred.get_series("STLENI")
@@ -72,6 +71,15 @@ def render_fred_card(label, value, quarter):
     # Formats the raw API value safely (multiplier removed to prevent the 40% bug!)
     val_text = f"{value:.2f}%" if value is not None else "N/A"
     tooltip_text = get_fred_description(label)
+    
+    # Determine the color based on the value
+    if value is None:
+        val_color = "#A0AAB5"  # Default grey for missing data
+    elif value < 0:
+        val_color = "red"      # Negative
+    else:
+        val_color = "#00A86B"  # Positive or zero
+
     st.markdown("""
     <style>
     .card-container {
@@ -137,7 +145,7 @@ def render_fred_card(label, value, quarter):
             {label} ({quarter if quarter else 'N/A'})
         </div>
         <div style="
-            color: #A0AAB5; 
+            color: {val_color}; /* Dynamically set color based on value */
             font-size: 28px;
             font-weight: bold; 
             line-height: 1;

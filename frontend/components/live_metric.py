@@ -13,13 +13,6 @@ def load_live_nowcast_df():
     except Exception:
         return None
 
-
-# def scale_if_needed(value):
-#     if value is not None and pd.notna(value) and abs(value) < 0.5:
-#         return value * 100
-#     return value
-
-
 def get_latest_bridge_value(df):
     """Get latest available bridge nowcast using flash3 -> flash2 -> flash1."""
     if df is None or df.empty:
@@ -36,7 +29,6 @@ def get_latest_bridge_value(df):
 
     return None, None
 
-
 def get_row_for_quarter(df, quarter):
     """Return the row matching a given quarter."""
     if df is None or df.empty or quarter is None:
@@ -46,7 +38,6 @@ def get_row_for_quarter(df, quarter):
     if matched.empty:
         return None
     return matched.iloc[0]
-
 
 def get_bridge_value_for_quarter(df, quarter):
     """Get bridge value for a specific quarter."""
@@ -63,7 +54,6 @@ def get_bridge_value_for_quarter(df, quarter):
 
     return quarter, None
 
-
 def get_column_value_for_quarter(df, quarter, column_name):
     """Get AR or ADL value for the same selected quarter only."""
     row = get_row_for_quarter(df, quarter)
@@ -75,32 +65,43 @@ def get_column_value_for_quarter(df, quarter, column_name):
         return quarter, value
     return quarter, None
 
-
 def render_model_card(title, quarter, value, height=120, tooltip_text=""):
-    #value = scale_if_needed(value)
-
-    # Default styling
-    text_color = "#00A86B"   # static green for AR/ADL
-    flash_class = ""
-
+    
+    # Updated color and flashing logic
     if value is not None and pd.notna(value):
         if value < 0:
-            text_color = "#FF3333"
-            flash_class = "flash-red"
+            text_color = "red"
+            flash_class = "flash-red" if "Bridge" in title else ""
         else:
-            # Only Bridge gets pulsating green
-            if "Bridge" in title:
-                text_color = "#00ff00"
-                flash_class = "flash-green"
-            else:
-                text_color = "#00A86B"
-                flash_class = ""
+            text_color = "#00A86B"
+            flash_class = "flash-green" if "Bridge" in title else ""
     else:
         text_color = "#A0AAB5"
         flash_class = ""
 
     st.markdown("""
     <style>
+    /* Pulsating Animations */
+    @keyframes pulse-green {
+        0% { color: #00A86B; text-shadow: 0 0 0px rgba(0, 168, 107, 0); }
+        50% { color: #33ffaa; text-shadow: 0 0 15px rgba(0, 168, 107, 0.6); }
+        100% { color: #00A86B; text-shadow: 0 0 0px rgba(0, 168, 107, 0); }
+    }
+
+    @keyframes pulse-red {
+        0% { color: red; text-shadow: 0 0 0px rgba(255, 0, 0, 0); }
+        50% { color: #ff6666; text-shadow: 0 0 15px rgba(255, 0, 0, 0.6); }
+        100% { color: red; text-shadow: 0 0 0px rgba(255, 0, 0, 0); }
+    }
+
+    .flash-green {
+        animation: pulse-green 2s infinite ease-in-out;
+    }
+
+    .flash-red {
+        animation: pulse-red 2s infinite ease-in-out;
+    }
+
     .card-container {
         position: relative;
         background-color: #1e2127;
@@ -112,7 +113,7 @@ def render_model_card(title, quarter, value, height=120, tooltip_text=""):
         flex-direction: column;
         justify-content: center;
         box-sizing: border-box;
-        cursor: help; /* Changes cursor to a question mark on hover */
+        cursor: help;
     }
 
     /* Tooltip text container */
@@ -126,7 +127,7 @@ def render_model_card(title, quarter, value, height=120, tooltip_text=""):
         padding: 8px;
         position: absolute;
         z-index: 100;
-        bottom: 105%; /* Position above the card */
+        bottom: 105%; 
         left: 50%;
         margin-left: -100px;
         opacity: 0;
@@ -174,7 +175,6 @@ def render_model_card(title, quarter, value, height=120, tooltip_text=""):
     </div>
     """, unsafe_allow_html=True)
 
-
 def get_reference_quarter(df):
     """
     Use the latest available bridge quarter as the common quarter
@@ -183,23 +183,20 @@ def get_reference_quarter(df):
     quarter, _ = get_latest_bridge_value(df)
     return quarter
 
-
 def render_bridge_card():
     df = load_live_nowcast_df()
     ref_quarter = get_reference_quarter(df)
     quarter, value = get_bridge_value_for_quarter(df, ref_quarter)
-    render_model_card("Current Bridge Nowcast", quarter, value, tooltip_text = "Bridge Model: Acts as a 'bridge' between high-frequency indicators and low-frequency indicators",height=120)
-
+    render_model_card("Current Bridge Nowcast", quarter, value, tooltip_text="Bridge Model: Acts as a 'bridge' between high-frequency indicators and low-frequency indicators", height=120)
 
 def render_ar_card():
     df = load_live_nowcast_df()
     ref_quarter = get_reference_quarter(df)
     quarter, value = get_column_value_for_quarter(df, ref_quarter, "ar_benchmark")
-    render_model_card("Current AR Nowcast", quarter, value, tooltip_text = "Autoregressive Model: Benchmark model that predicts based on past indicators", height=120)
-
+    render_model_card("Current AR Nowcast", quarter, value, tooltip_text="Autoregressive Model: Benchmark model that predicts based on past indicators", height=120)
 
 def render_adl_card():
     df = load_live_nowcast_df()
     ref_quarter = get_reference_quarter(df)
     quarter, value = get_column_value_for_quarter(df, ref_quarter, "adl_benchmark")
-    render_model_card("Current ADL Nowcast", quarter, value, tooltip_text= "Autoregressive Distributed Lag Model: Extension of AR Model to include past values of other explanatory variables", height=120)
+    render_model_card("Current ADL Nowcast", quarter, value, tooltip_text="Autoregressive Distributed Lag Model: Extension of AR Model to include past values of other explanatory variables", height=120)
