@@ -118,7 +118,7 @@ def fill_ragged_edge(monthly_data, ar_models, selected_names, verbose=VERBOSE):
 
         # fill the missing values
         missing_idx = series.loc[last_valid_index:].index[series.loc[last_valid_index:].isna()]
-        filled_data.loc[missing_idx, name] = forecasts
+        filled_data.loc[missing_idx, name] = np.asarray(forecasts)
         if verbose:
             print(f"Filled {n_missing} missing values for {name} using AR forecast.")
     return filled_data
