@@ -77,7 +77,7 @@ def overwrite_next_quarter_with_live_bridge(df_evolution, full_data, live_nowcas
                 new_rows.append({
                     "target_quarter": target_quarter,
                     "nowcast_month": m,
-                    "prediction": val * 100
+                    "prediction": val 
                 })
 
         if new_rows:
