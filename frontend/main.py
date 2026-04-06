@@ -7,6 +7,7 @@ import subprocess
 import pandas as pd
 import numpy as np
 import base64
+import os
 
 # --- 1. PAGE CONFIGURATION ---
 st.set_page_config(layout="wide", initial_sidebar_state="expanded")
@@ -443,9 +444,16 @@ if refresh_clicked:
             model_script = ROOT_DIR / "src" / "live_nowcast.py"
             evo_script = ROOT_DIR / "export_bridge_evolution.py" 
             
-            subprocess.run([sys.executable, str(api_script)], check=True)
-            subprocess.run([sys.executable, str(model_script)], check=True)
-            subprocess.run([sys.executable, str(evo_script)], check=True) 
+            #subprocess.run([sys.executable, str(api_script)], check=True)
+            #subprocess.run([sys.executable, str(model_script)], check=True)
+            #subprocess.run([sys.executable, str(evo_script)], check=True) 
+
+            env = os.environ.copy()
+            env["FRED_API_KEY"] = st.secrets["FRED_API_KEY"]
+
+            subprocess.run([sys.executable, str(api_script)], check=True, env=env)
+            subprocess.run([sys.executable, str(model_script)], check=True, env=env)
+            subprocess.run([sys.executable, str(evo_script)], check=True, env=env)
             
             st.session_state["success_popup"] = True
             st.cache_data.clear()
