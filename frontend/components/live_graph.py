@@ -68,7 +68,7 @@ def render(show_50=False, show_80=False):
 
     fig = go.Figure()
 
-    # --- FAN CHART & ERROR BAR LOGIC ---
+    # --- FAN CHART & MINIMALIST CANDLESTICK LOGIC ---
     z_80, z_50 = 1.28, 0.67
     hover_data = []
 
@@ -79,7 +79,7 @@ def render(show_50=False, show_80=False):
         lower_50 = [p - (se * z_50) for p, se in zip(preds, ses)]
 
         if len(preds) > 1:
-            # Draw standard Fan Chart bands if we have 2+ points
+            # Standard Fan Chart bands for 2+ points
             if show_80:
                 fig.add_trace(go.Scatter(
                     x=months + months[::-1], 
@@ -101,14 +101,15 @@ def render(show_50=False, show_80=False):
                     showlegend=False
                 ))
         else:
-            # Draw Error Bars if we only have 1 point
+            # Sleek "Candlestick" columns for a single point
             if show_80:
                 fig.add_trace(go.Scatter(
                     x=[months[0]], y=[preds[0]], mode='markers',
                     marker=dict(size=0.1, color='rgba(0,0,0,0)'),
                     error_y=dict(
                         type='data', symmetric=True, array=[ses[0] * z_80],
-                        color='rgba(0, 229, 255, 0.3)', thickness=2, width=15
+                        color='rgba(0, 229, 255, 0.25)', 
+                        thickness=10, width=0 # width=0 kills the ugly caps!
                     ),
                     hoverinfo='skip', showlegend=False
                 ))
@@ -118,7 +119,8 @@ def render(show_50=False, show_80=False):
                     marker=dict(size=0.1, color='rgba(0,0,0,0)'),
                     error_y=dict(
                         type='data', symmetric=True, array=[ses[0] * z_50],
-                        color='rgba(0, 229, 255, 0.6)', thickness=4, width=10
+                        color='rgba(0, 229, 255, 0.35)', 
+                        thickness=10, width=0 # Thicker line, no caps, mimics a column
                     ),
                     hoverinfo='skip', showlegend=False
                 ))
