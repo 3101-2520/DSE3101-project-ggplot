@@ -4,6 +4,7 @@ from fredapi import Fred
 import re
 import requests
 import certifi
+import os
 
     
 @st.cache_data(ttl=3600)
@@ -45,7 +46,8 @@ def get_fred_data():
 
     try:
         # St. Louis: FRED is fine
-        fred = Fred(api_key=st.secrets["FRED_API_KEY"])
+        api_key = os.environ.get("FRED_API_KEY")
+        fred = Fred(api_key=api_key)
         stl_series = fred.get_series("STLENI")
 
         stl_clean = stl_series.dropna()

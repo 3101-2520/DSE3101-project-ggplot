@@ -14,6 +14,21 @@ def load_evolution_data():
     except Exception:
         return pd.DataFrame()
 
+def get_actual_month_labels(quarter_str):
+    """Maps a quarter string like '2026 Q1' to its actual calendar months."""
+    q_str = str(quarter_str).replace(" ", "").upper()
+    
+    # Extract just the Q1/Q2/Q3/Q4 part
+    q = q_str[-2:]
+    
+    if q == "Q1": return ["Jan", "Feb", "Mar", "Apr"]
+    if q == "Q2": return ["Apr", "May", "Jun", "Jul"]
+    if q == "Q3": return ["Jul", "Aug", "Sep", "Oct"]
+    if q == "Q4": return ["Oct", "Nov", "Dec", "Jan"]
+    
+    # Fallback just in case
+    return ["1st Month", "2nd Month", "3rd Month", "Month After"]
+
 # --- 2. SIDEBAR LOGIC ---
 def get_sidebar_filters():
     """Call this function inside st.sidebar in main.py"""
@@ -25,7 +40,14 @@ def get_sidebar_filters():
         return None
         
     quarters = sorted(df['target_quarter'].dropna().unique(), reverse=True)
-    selected_q = st.selectbox("Target Quarter", quarters)
+    
+    # Safely find "2025 Q4" and set it as the default index. 
+    # If it's not in the data, it safely defaults to 0 (the newest quarter).
+    default_idx = 0
+    if "2025 Q4" in quarters:
+        default_idx = quarters.index("2025 Q4")
+        
+    selected_q = st.selectbox("Target Quarter", quarters, index=default_idx)
     return selected_q
 
 # --- 3. MAIN RENDER ---
@@ -42,8 +64,11 @@ def render(gdp_data, selected_q):
     # Filter data for the selected quarter
     q_data = df[df['target_quarter'] == selected_q].copy()
     
-    # Map numeric months to readable labels
-    month_map = {1: "1st Month", 2: "2nd Month", 3: "3rd Month", 4: "Month After"}
+    # Generate the dynamic month labels based on the selected quarter
+    month_labels = get_actual_month_labels(selected_q)
+    
+    # Map numeric months (1, 2, 3, 4) to the actual readable calendar labels
+    month_map = {1: month_labels[0], 2: month_labels[1], 3: month_labels[2], 4: month_labels[3]}
     q_data['month_label'] = q_data['nowcast_month'].map(month_map)
     
     # Look up the ACTUAL GDP for this quarter from the main dataset
@@ -86,13 +111,14 @@ def render(gdp_data, selected_q):
         template="plotly_dark",
         xaxis_title="Timeline of Prediction",
         yaxis_title="GDP Growth (%)",
-        # Font family removed to use default
         xaxis=dict(
             categoryorder="array", 
-            categoryarray=["1st Month", "2nd Month", "3rd Month", "Month After"]
+            # This forces Plotly to render the x-axis in the correct chronological 
+            # order even if a specific month's data is temporarily missing
+            categoryarray=month_labels 
         ),
         margin=dict(l=0, r=0, t=40, b=0),
-        plot_bgcolor="rgba(0,0,0,0)", # Transparent to match your greyish theme
+        plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         height=450
     )

@@ -51,7 +51,7 @@ def overwrite_last_row_with_live(history_series, live_df, live_col):
     last_hist_q = aligned.index[-1]
 
     if last_hist_q in live_df.index and pd.notna(live_df.loc[last_hist_q, live_col]):
-        aligned.loc[last_hist_q] = live_df.loc[last_hist_q, live_col] * 100
+        aligned.loc[last_hist_q] = live_df.loc[last_hist_q, live_col] 
 
     return aligned
     

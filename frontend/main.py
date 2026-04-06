@@ -351,7 +351,6 @@ if st.session_state.get("is_refreshing", False):
         evo_script = ROOT_DIR / "frontend" / "export_bridge_evolution.py" 
 
         env = os.environ.copy()
-        env["FRED_API_KEY"] = st.secrets["FRED_API_KEY"]
 
         subprocess.run([sys.executable, str(api_script)], check=True, env=env)
         

@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 import certifi
 from utils import apply_custom_font
+import os
 
 apply_custom_font()
 
@@ -33,7 +34,7 @@ def fetch_fred_series(series_id: str, api_key: str) -> pd.Series:
 @st.cache_data(ttl=3600)
 def get_historical_nowcasts() -> pd.DataFrame:
     try:
-        api_key = st.secrets["FRED_API_KEY"]
+        api_key = os.environ.get("FRED_API_KEY")
 
         series_map = {
             "Real GDP (Actual)": "GDPC1",

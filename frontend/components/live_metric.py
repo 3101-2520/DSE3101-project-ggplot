@@ -14,10 +14,10 @@ def load_live_nowcast_df():
         return None
 
 
-def scale_if_needed(value):
-    if value is not None and pd.notna(value) and abs(value) < 0.5:
-        return value * 100
-    return value
+# def scale_if_needed(value):
+#     if value is not None and pd.notna(value) and abs(value) < 0.5:
+#         return value * 100
+#     return value
 
 
 def get_latest_bridge_value(df):
@@ -77,7 +77,7 @@ def get_column_value_for_quarter(df, quarter, column_name):
 
 
 def render_model_card(title, quarter, value, height=120, tooltip_text=""):
-    value = scale_if_needed(value)
+    #value = scale_if_needed(value)
 
     # Default styling
     text_color = "#00A86B"   # static green for AR/ADL
