@@ -198,5 +198,4 @@ def render_ar_card():
 def render_adl_card():
     df = load_live_nowcast_df()
     ref_quarter = get_reference_quarter(df)
-    quarter, value = get_column_value_for_quarter(df, ref_quarter, "adl_benchmark")
-    render_model_card("Current ADL Nowcast", quarter, value, tooltip_text="Autoregressive Distributed Lag Model: Extension of AR Model to include past values of other explanatory variables", height=120)
+    quarter, value = get_column_value_for_qu
