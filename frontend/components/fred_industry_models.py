@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 import certifi
 from utils import apply_custom_font
+import os
 
 apply_custom_font()
 

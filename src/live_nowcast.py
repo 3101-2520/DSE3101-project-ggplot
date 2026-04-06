@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     gdp_raw.index = pd.to_datetime(gdp_raw.index)
     gdp_raw.index = gdp_raw.index.to_period('Q')
-    GDP_growth = np.log(gdp_raw).diff().dropna().rename("GDP_growth")
+    GDP_growth = (np.log(gdp_raw).diff().dropna()*400).rename("GDP_growth")
     print(f"GDP growth observations: {len(GDP_growth)}")
     
 
