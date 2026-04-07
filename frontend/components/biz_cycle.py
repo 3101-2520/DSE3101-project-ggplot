@@ -2,16 +2,14 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 
-def get_cycle_description(label):
-    """Returns a brief definition for the business cycle tooltip."""
-    descriptions = {
-        "Recession": "Two or more consecutive quarters of negative GDP growth.",
-        "Contracting": "Current GDP growth is negative, indicating economic shrinkage.",
-        "Expansion": "GDP is growing and accelerating compared to the previous quarter.",
-        "Decelerating Growth": "GDP is still growing, but at a slower pace than the previous quarter.",
-        "-": "Insufficient data to determine current business cycle phase."
-    }
-    return descriptions.get(label, "Economic phase based on flash nowcasts and historical GDP.")
+def get_all_cycle_descriptions():
+    """Returns succinct definitions for all business cycle phases."""
+    return (
+        "<b>Recession:</b> 2+ quarters of negative growth.<br>"
+        "<b>Contracting:</b> Current growth is negative.<br>"
+        "<b>Expansion:</b> Growth is positive & accelerating.<br>"
+        "<b>Slowing:</b> Growth is positive but slowing."
+    )
 
 def render(gdp_data):
     # 1. Fetch the Live Prediction directly from the CSV
@@ -69,50 +67,54 @@ def render(gdp_data):
                     text_color = "#00FF00" # Neon Green
                     flash_class = "flash-green"
                 elif current >= 0 and current < v1:
-                    label = "Decelerating Growth"
+                    label = "Decelerating"
                     text_color = "#F1C40F" # Yellow
                     flash_class = "flash-yellow"
         except Exception:
             pass 
 
-    # 3. Display the card
-    tooltip_text = get_cycle_description(label)
+    # 3. Get the static tooltip text containing all definitions
+    tooltip_text = get_all_cycle_descriptions()
+    
+    # 4. Display the card with UNIQUE class names
     st.markdown("""
     <style>
-    .card-container {
+    .cycle-card-container {
         position: relative;
         cursor: help;
     }
-    .card-container .tooltiptext {
+    .cycle-card-container .cycle-tooltiptext {
         visibility: hidden;
-        width: 220px;
+        width: 350px !important; 
+        min-width: 350px !important;
+        white-space: normal !important;
         background-color: #30363d;
         color: #fff;
-        text-align: center;
+        text-align: center; 
         border-radius: 8px;
-        padding: 10px;
+        padding: 16px;
         position: absolute;
-        z-index: 100;
+        z-index: 9999 !important; 
         bottom: 110%; 
-        left: 50%;
-        margin-left: -110px;
+        left: 50%; 
+        margin-left: -175px; 
         opacity: 0;
         transition: opacity 0.3s;
-        font-size: 12px;
-        font-weight: 300;
+        font-size: 13px;
+        font-weight: 400;
         border: 1px solid #A0AAB5;
-        line-height: 1.4;
+        line-height: 1.5;
     }
-    .card-container:hover .tooltiptext {
+    .cycle-card-container:hover .cycle-tooltiptext {
         visibility: visible;
         opacity: 1;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # 3. Render the Card with the tooltip
+    # 5. Render the Card using the UNIQUE class names
     st.markdown(f"""
-    <div class="card-container" style="
+    <div class="cycle-card-container" style="
         background-color: #1e2127;
         padding: 20px;
         border-radius: 12px;
@@ -124,7 +126,7 @@ def render(gdp_data):
         justify-content: center;
         box-sizing: border-box;
     ">
-        <span class="tooltiptext">{tooltip_text}</span>
+        <span class="cycle-tooltiptext">{tooltip_text}</span>
         <div style="
             color: #A0AAB5;
             font-size: 14px;
@@ -150,6 +152,3 @@ def render(gdp_data):
         </div>
     </div>
     """, unsafe_allow_html=True)
-
-
-        
