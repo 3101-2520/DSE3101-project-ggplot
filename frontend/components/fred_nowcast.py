@@ -143,4 +143,14 @@ def render_fred_card(label, value, quarter):
             text-align: center;
         ">
             {label} ({quarter if quarter else 'N/A'})
- 
+        </div>
+        <div style="
+            color: {val_color}; /* Dynamically set color based on value */
+            font-size: 28px;
+            font-weight: bold; 
+            line-height: 1;
+        ">
+            {val_text}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
