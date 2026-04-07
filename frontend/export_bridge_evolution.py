@@ -97,7 +97,6 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
         output_path = ROOT_DIR / "data" / "bridge_evolution.csv"
 
     results = []
-    contrib_rows = []
 
     full_data = data.copy()
     full_data["GDP_growth_lag1"] = full_data[target_col].shift(1)
@@ -137,7 +136,7 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
         train_data = full_data.iloc[:i].copy().dropna(subset=[target_col])
 
         try:
-            bridge_model, _ = fit_bridge_model(train_data, all_predictors, target_col=target_col)
+            bridge_model, _ = fit_bridge_model(train_data, selected_names, target_col=target_col)
         except Exception as e:
             print(f"  [X] Skipped {target_q_str} entirely: Bridge model training failed ({e})")
             continue
@@ -218,31 +217,6 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
                     "nowcast_month": 4,
                     "prediction": final_pred
                 })
-
-                # save quarter-level bridge contributions
-                params = bridge_model.params
-                row_vals = x_final.iloc[0]
-
-                # exclude intercept from contribution share calculation
-                variable_contribs = {}
-                for var in x_final.columns:
-                    if var == "const":
-                        continue
-                    contrib = params[var] * row_vals[var]
-                    variable_contribs[var] = contrib
-
-                abs_total = sum(abs(v) for v in variable_contribs.values())
-
-                for var, contrib in variable_contribs.items():
-                    contrib_rows.append({
-                        "target_quarter": target_q_str,
-                        "variable": var,
-                        "contribution": contrib,
-                        "abs_contribution": abs(contrib),
-                        "abs_contribution_share": abs(contrib) / abs_total if abs_total > 0 else 0,
-                        "direction": "positive" if contrib > 0 else "negative" if contrib < 0 else "neutral",
-                        "prediction": final_pred
-                    })
             else:
                 missing_cols = x_final.columns[x_final.isna().any()].tolist()
                 print(f"  [!] Skipped {target_q_str} Flash 4 due to missing data: {missing_cols}")
@@ -264,11 +238,6 @@ def build_bridge_evolution_csv(data, md_trans, selected_names, output_path=None,
     if output_path is not None:
         df_evolution.to_csv(output_path, index=False)
         print(f"\n✅ Successfully exported accurate evolution data to {output_path}")
-
-    contrib_df = pd.DataFrame(contrib_rows)
-    contrib_output_path = ROOT_DIR / "data" / "bridge_contributions.csv"
-    contrib_df.to_csv(contrib_output_path, index=False)
-    print(f"✅ Successfully exported bridge contribution data to {contrib_output_path}")
 
     return df_evolution
 
