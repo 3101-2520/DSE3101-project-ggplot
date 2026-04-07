@@ -41,7 +41,7 @@ def build_historical_bridge_csv(
 
             bridge_model, bridge_coefs = fit_bridge_model(
                 train_data,
-                selected,
+                all_predictors,
                 target_col=target_col
             )
 
@@ -85,7 +85,7 @@ def build_historical_bridge_csv(
 
                 bridge_model, bridge_coefs = fit_bridge_model(
                     train_data,
-                    selected,
+                    all_predictors,
                     target_col=target_col
                 )
 
