@@ -296,7 +296,7 @@ current_dir = Path(__file__).parent
 image_path = current_dir / "assets" / "Team_logo.png"
 img_base64 = get_image_base64(image_path) if image_path.exists() else ""
 
-col_title, col_status = st.columns([4, 1.4])
+col_title, col_status = st.columns([4, 2])
 
 with col_title:
     st.markdown(
