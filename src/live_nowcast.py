@@ -1,10 +1,3 @@
-import sys
-from pathlib import Path
-
-ROOT_DIR = Path(__file__).resolve().parents[1]
-if str(ROOT_DIR) not in sys.path:
-    sys.path.append(str(ROOT_DIR))
-
 from config import *
 from src.data_preprocessing import load_and_transform_md, aggregate_to_quarterly, load_and_transform_qd, merge_data, transform_series
 from models.ar_indicator import fit_ar_models, fill_ragged_edge
@@ -12,6 +5,10 @@ from models.bridge_model import fit_bridge_model
 from models.flash_nowcast import _make_flash_monthly_panel, _build_flash_predictor_row
 from models.ar_benchmark import fit_ar_benchmark
 from models.adl_benchmark import fit_adl_benchmark, prepare_adl_data
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 
 if __name__ == "__main__":
 

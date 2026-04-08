@@ -1,6 +1,4 @@
 from config import *
-from sklearn.ensemble import RandomForestRegressor
-
 
 def fit_rf_model(train_data, feature_cols, target_col='GDP_growth', rf_params=None):
     """

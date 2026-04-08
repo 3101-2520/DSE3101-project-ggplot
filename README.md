@@ -46,7 +46,7 @@ DSE3101-Proj/
 │   ├── feature_selection.py    # LASSO feature selection logic
 │   ├── FRED_API_pipeline.py    # Core FRED API interaction functions
 │   └── live_nowcast.py         # Live inference and prediction script
-├── config.py                   # Global configuration and path settings
+├── config.py                   # Backend configurations
 ├── requirements.txt            # Python dependencies
 └── README.md
 ```
@@ -101,22 +101,22 @@ DSE3101-Proj/
    1. Create a FRED account and request an API key at https://fred.stlouisfed.org/docs/api/fred/v2/api_key.html
    2. Set the API key as an enviroment variable
       - On macOS/Linux:
-     ```bash
-     export FRED_API_KEY = "your_api_key_here"
-     ```
-   - On Windows:
-     ```bash
-     $env:FRED_API_KEY="your_api_key_here"
-     ```
+      ```bash
+      export FRED_API_KEY = "your_api_key_here"
+      ```
+      - On Windows:
+      ```bash
+      $env:FRED_API_KEY="your_api_key_here"
+      ```
    3. Check that your API key has been set
       - On macOS/Linux:
-     ```bash
-     echo $FRED_API_KEY
-     ```
-   - On Windows:
-     ```bash
-     echo $env:FRED_API_KEY
-     ```
+      ```bash
+      echo $FRED_API_KEY
+      ```
+      - On Windows:
+      ```bash
+      echo $env:FRED_API_KEY
+      ```
 ## Running files
 
 The project has 3 main workflows:

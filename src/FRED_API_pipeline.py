@@ -1,7 +1,4 @@
-import os
-import time
-import pandas as pd
-from fredapi import Fred
+from config import *
 
 def get_fred_client():
     """

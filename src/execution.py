@@ -8,8 +8,6 @@ from models.evaluation import run_expanding_nowcast, run_rf_benchmark
 from models.ar_benchmark import run_ar_benchmark
 from models.adl_benchmark import run_adl_benchmark
 from models.flash_nowcast import run_expanding_flash_nowcast
-from sklearn.ensemble import RandomForestRegressor 
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
 
 # ----------------------------------------------------------------------
 # Main execution
@@ -210,10 +208,10 @@ if __name__ == "__main__":
     rf_rmse, rf_mae, rf_dir_acc = compute_metrics(rf_results)
 
     comparison_table = pd.DataFrame({
-        'Model': ['Flash 3 Nowcast', 'AR Benchmark', 'ADL Benchmark', 'Random Forest'],
-        'RMSE': [flash3_rmse, ar_rmse, adl_rmse, rf_rmse],
-        'MAE': [flash3_mae, ar_mae, adl_mae, rf_mae],
-        'Directional Accuracy': [flash3_dir_acc, ar_dir_acc, adl_dir_acc, rf_dir_acc]
+        'Model': ['Flash 2 Nowcast', 'AR Benchmark', 'ADL Benchmark', 'Random Forest'],
+        'RMSE': [flash2_rmse, ar_rmse, adl_rmse, rf_rmse],
+        'MAE': [flash2_mae, ar_mae, adl_mae, rf_mae],
+        'Directional Accuracy': [flash2_dir_acc, ar_dir_acc, adl_dir_acc, rf_dir_acc]
     })
 
     print("\nFinal evaluation results summary:")

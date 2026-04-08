@@ -4,11 +4,6 @@ AR Benchmark Model for GDP Growth
 This script implements a simple AR(p) benchmark model for nowcasting GDP growth.
 """
 from config import *
-import numpy as np
-import pandas as pd
-from statsmodels.tsa.ar_model import AutoReg
-import sys
-from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))

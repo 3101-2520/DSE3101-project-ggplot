@@ -1,5 +1,4 @@
 from config import *
-import statsmodels.api as sm
 
 from src.data_preprocessing import aggregate_to_quarterly
 from models.bridge_model import fit_bridge_model
