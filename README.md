@@ -86,13 +86,18 @@ DSE3101-Proj/
 
 ## Local Setup
 
-1. **Create a Python virtual environment** (recommended):
+1. **Clone the repository**  
+   ```bash
+   git clone https://github.com/shannon-kwok/DSE3101-Proj.git
+   cd DSE3101-Proj
+
+2. **Create a Python virtual environment** (recommended):
 
    ```bash
    python -m venv .venv
    ```
 
-2. **Activate the virtual environment**:
+3. **Activate the virtual environment**:
    - On macOS/Linux:
      ```bash
      source .venv/bin/activate
@@ -102,13 +107,13 @@ DSE3101-Proj/
      .venv\Scripts\activate
      ```
 
-3. **Install dependencies**:
+4. **Install dependencies**:
 
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **FRED API Setup**
+5. **FRED API Setup**
    1. Create a FRED account and request an API key at https://fred.stlouisfed.org/docs/api/fred/v2/api_key.html
    2. Set the API key as an enviroment variable
       - On macOS/Linux:
