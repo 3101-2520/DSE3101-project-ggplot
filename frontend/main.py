@@ -235,7 +235,7 @@ st.markdown("""
 
     .card-label {
         color: #a1a1aa;
-        font-size: 0.8rem;
+        font-size: 10px;
         margin-bottom: 10px;
         text-transform: uppercase;
         text-align: center;

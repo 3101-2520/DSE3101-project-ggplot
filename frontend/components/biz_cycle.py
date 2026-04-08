@@ -129,7 +129,7 @@ def render(gdp_data):
         <span class="cycle-tooltiptext">{tooltip_text}</span>
         <div style="
             color: #A0AAB5;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold; 
             text-transform: uppercase;
             letter-spacing: 1px;

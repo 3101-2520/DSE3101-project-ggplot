@@ -151,7 +151,7 @@ def render_model_card(title, quarter, value, height=120, tooltip_text=""):
         <span class="tooltiptext">{tooltip_text}</span>
         <div style="
             color: #A0AAB5;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
