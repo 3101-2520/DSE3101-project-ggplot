@@ -45,7 +45,9 @@ def get_fred_data():
 
     try:
         # St. Louis: FRED
-        api_key = os.environ.get("FRED_API_KEY")
+        api_key = st.secrets.get("FRED_API_KEY") or os.environ.get("FRED_API_KEY")
+        if not api_key:
+            raise ValueError("FRED_API_KEY not found in Streamlit secrets or environment variables.")
         fred = Fred(api_key=api_key)
         stl_series = fred.get_series("STLENI")
 
