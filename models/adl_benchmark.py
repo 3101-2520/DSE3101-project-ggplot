@@ -1,7 +1,4 @@
 from config import *
-import pandas as pd
-import numpy as np
-import statsmodels.api as sm
 
 def prepare_adl_data(data, target_col = "GDP_growth"):
     """
