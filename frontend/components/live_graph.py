@@ -99,7 +99,7 @@ def render(show_50=False, show_80=False):
                     showlegend=False
                 ))
         else:
-            # Note: "skip" is crucial here. It makes the error bars physically invisible to the mouse
+            # Making the error bars physically invisible to the mouse
             if show_80:
                 fig.add_trace(go.Scatter(
                     x=[months[0]], y=[preds[0]], mode='markers',
@@ -158,7 +158,7 @@ def render(show_50=False, show_80=False):
         ))
 
     # --- 3. THE EMERALD NOWCAST DOT ---
-    # The absolute undisputed king of the final coordinate. Captures all hovers.
+    # Captures all hovers.
     latest_month = months[-1]
     latest_pred = preds[-1]
     emerald_green = "#2ECC71"
