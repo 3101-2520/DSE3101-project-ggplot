@@ -92,17 +92,8 @@ if __name__ == "__main__":
 
     print("\nAll preprocessing and model fitting complete.")
     print("You can now use the selected variables, bridge coefficients, and AR models for nowcasting.")
-
-    # Step 12: Expanding window evaluation --> remove this 
-    # expanding_results = run_expanding_nowcast(
-    #     data, MD_trans, selected,
-    #     test_size=test_size,
-    #     max_lag=12,
-    #     target_col='GDP_growth',
-    #     verbose=VERBOSE
-    # )
     
-    # Step 13: Run flash nowcast evaluation
+    # Step 12: Run flash nowcast evaluation
     flash_results = run_expanding_flash_nowcast(
         data=data,
         md_trans=MD_trans,
