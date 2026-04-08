@@ -56,13 +56,18 @@ DSE3101-Proj/
 ## Tech Stack
 1. **Frontend UI Tech Stack**
    Core Framework: Streamlit (Python)
+
    UI Components & Navigation: streamlit-option-menu for sidebar routing, native Streamlit layout containers (st.columns, st.sidebar, st.dialog).
+
    Styling & Theming: Custom CSS injections (for metric cards, hover states, and CSS keyframe animations) via st.markdown(unsafe_allow_html=True).
+
    Iconography: Bootstrap Icons (imported via CDN).
+
    Frontend Architecture: Modular, component-based design separating logical UI elements (e.g., biz_cycle.py, live_graph.py, config_panel.py) from the main execution script.
+
    Data Interface Layer: pandas and numpy for localized data transformation and cache management (@st.cache_data) before rendering.
 
-   Frontend Architecture Note: > The dashboard leverages a component-based structure to maintain a clean main.py entry point. UI rendering is heavily customized using raw HTML/CSS injections to override Streamlit's default styling, enabling features like glowing text animations, custom KPI cards, and embedded Bootstrap iconography for a more polished "terminal" aesthetic.
+   Frontend Architecture Note: The dashboard leverages a component-based structure to maintain a clean main.py entry point. UI rendering is heavily customized using raw HTML/CSS injections to override Streamlit's default styling, enabling features like glowing text animations, custom KPI cards, and embedded Bootstrap iconography for a more polished "terminal" aesthetic.
 
 2. **Backend**
 
@@ -131,7 +136,8 @@ The project has 3 main workflows:
       python -m src.live_nowcast
 
 3. **Frontend UI Dashboard**
-   ```bash streamlit run frontend/main.py
+   ```bash 
+   streamlit run frontend/main.py
       ```
 
 ## Contributed By
