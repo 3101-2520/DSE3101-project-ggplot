@@ -65,11 +65,22 @@ DSE3101-Proj/
 
    **Frontend Architecture:** Modular, component-based design separating logical UI elements (e.g., biz_cycle.py, live_graph.py, config_panel.py) from the main execution script.
 
-   **Data Interface Layer:** pandas and numpy for localized data transformation and cache management (@st.cache_data) before rendering.
+   **Data Interface Layer:** pandas and NumPy for localized data transformation and cache management (@st.cache_data) before rendering.
 
    *Frontend Architecture Note: The dashboard leverages a component-based structure to maintain a clean main.py entry point. UI rendering is heavily customized using raw HTML/CSS injections to override Streamlit's default styling, enabling features like glowing text animations, custom KPI cards, and embedded Bootstrap iconography for a more polished "terminal" aesthetic.*
 
 2. **Backend**
+   **Core Language:**: Python
+
+   **Data Processing and Transformation**: pandas and NumPy for cleaning, transformation, quarterly aggregation, frequency alignment and construction of macroeconomics dataset
+
+   **Modelling and Statistical Methods**: statsmodel for AR, ADL and Bridge-model estimation, scikit-learn for Random Forest.
+
+   **Feature Selection**: hdmpy for LASSO-based variable selection (rlasso)
+
+   **Backend Architecture**: Modular script-based pipeline across src/ and models/, seperating data ingestion, preprocessing, feature selection, benchmark modeling, bridge and flash nowcast and export logic
+
+   **Output Layer**: Backend exports model outputs into CSV files, including live nowcast results, bridge, which are then used by fronted
 
 -- 
 
