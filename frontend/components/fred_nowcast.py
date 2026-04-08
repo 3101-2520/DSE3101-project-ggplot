@@ -131,7 +131,7 @@ def render_fred_card(label, value, quarter):
         <span class="tooltiptext">{tooltip_text}</span>
         <div style="
             color: #A0AAB5;
-            font-size: 14px;
+            font-size: 11px;
             font-weight: bold; 
             text-transform: uppercase;
             letter-spacing: 1px;
