@@ -1,9 +1,14 @@
-from config import *
-from src.FRED_API_pipeline import fetch_monthly_series, fetch_quarterly_gdp
+import sys
+from pathlib import Path
+import pandas as pd
+from datetime import datetime
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
+
+from config import *
+from src.FRED_API_pipeline import fetch_monthly_series, fetch_quarterly_gdp
 
 def csv_to_api(name):
     if name.endswith("x"):
