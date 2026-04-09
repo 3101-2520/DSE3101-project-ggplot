@@ -8,7 +8,7 @@ def get_fred_client():
         - On Windows (PowerShell): $env:FRED_API_KEY = "your_key_here"
         - On Linux/macOS: export FRED_API_KEY="your_key_here"
     """
-    api_key = os.environ.get("FRED_API_KEY")
+    api_key = st.secrets.get("FRED_API_KEY") or os.environ.get("FRED_API_KEY")
     if api_key is None:
         raise ValueError("FRED_API_KEY environment variable not set")
     return Fred(api_key=api_key)
