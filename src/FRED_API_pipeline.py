@@ -1,3 +1,4 @@
+import streamlit as st
 from config import *
 
 def get_fred_client():
